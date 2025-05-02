@@ -1,0 +1,6 @@
+[package]
+name = "comatch.nr"
+type = "bin"
+authors = ["teddav"]
+
+[dependencies]
