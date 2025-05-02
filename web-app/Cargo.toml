@@ -1,0 +1,28 @@
+[package]
+name = "co-match"
+version = "0.1.0"
+edition = "2024"
+authors = ["teddav"]
+
+[dependencies]
+tokio = { version = "1", features = ["macros"] }
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = { version = "1.0.106", features = ["raw_value"] }
+vercel_runtime = "1.1.4"
+
+co-noir = { git = "https://github.com/TaceoLabs/co-snarks", rev = "b294667" }
+bincode = "1.3.3"
+rand = "0.8.5"
+hex = "0.4.3"
+toml = "0.8.22"
+
+lambda_http = { version = "0.11.4", features = [
+    "apigw_http",
+], default-features = false }
+
+[lib]
+path = "src-rs/lib.rs"
+
+[[bin]]
+name = "split"
+path = "api/split.rs"
