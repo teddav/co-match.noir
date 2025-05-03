@@ -1,15 +1,12 @@
-use clap::Parser;
 use co_noir::{
     AcirFormat, Address, Bn254, CrsParser, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge,
     Rep3AcvmType, Rep3CoUltraHonk, Rep3MpcNet, UltraHonk, Utils,
 };
-use co_ultrahonk::prelude::{Crs, ProverCrs, ZeroKnowledge};
-use color_eyre::{
-    Result,
-    eyre::{Context, eyre},
-};
+use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use std::sync::Arc;
+use std::thread;
 use std::{
     collections::BTreeMap,
     path::PathBuf,
@@ -21,16 +18,7 @@ use tracing_subscriber::{
     prelude::*,
 };
 
-#[derive(Parser, Debug)]
-struct Args {
-    #[clap(short, long)]
-    id: u8,
-}
-
-fn main() -> Result<()> {
-    let args = Args::parse();
-    println!("id: {args:?}");
-
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let start_setup = Instant::now();
 
     let fmt_layer = fmt::layer()
@@ -72,8 +60,7 @@ fn main() -> Result<()> {
 
     // let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_vectors");
 
-    let program_artifact = Utils::get_program_artifact_from_file(dir.join("circuit.json"))
-        .context("while parsing program artifact")?;
+    let program_artifact = Utils::get_program_artifact_from_file(dir.join("circuit.json"))?;
     let constraint_system = Utils::get_constraint_system_from_artifact(&program_artifact, true);
 
     let recursive = true;
@@ -92,33 +79,70 @@ fn main() -> Result<()> {
 
     let [share0, share1, share2] = split_input(dir.join("Prover.toml"), program_artifact.clone())?;
 
-    let (id, port, key_path, share) = match args.id {
-        0 => (PartyID::ID0, 10000, "key0.der", share0),
-        1 => (PartyID::ID1, 10001, "key1.der", share1),
-        2 => (PartyID::ID2, 10002, "key2.der", share2),
-        _ => return Err(eyre!("Invalid party id")),
-    };
-    let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(dir.join(key_path))?))
-        .clone_key();
-
-    spawn_party(
-        id,
-        port,
-        key,
-        parties,
-        share,
-        program_artifact,
-        constraint_system,
+    let data0 = Arc::new(DataForThread {
+        id: PartyID::ID0,
+        port: 10000,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            dir.join("key0.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share0,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
         recursive,
         has_zk,
-        crs,
-    )?;
+        crs: crs.clone(),
+    });
+    let data1 = Arc::new(DataForThread {
+        id: PartyID::ID1,
+        port: 10001,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            dir.join("key1.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share1,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
+        recursive,
+        has_zk,
+        crs: crs.clone(),
+    });
+    let data2 = Arc::new(DataForThread {
+        id: PartyID::ID2,
+        port: 10002,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            dir.join("key2.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share2,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
+        recursive,
+        has_zk,
+        crs: crs.clone(),
+    });
+
+    let handles = vec![
+        thread::spawn(move || spawn_party(data0)),
+        thread::spawn(move || spawn_party(data1)),
+        thread::spawn(move || spawn_party(data2)),
+    ];
+
+    for handle in handles {
+        let a = handle.join().unwrap()?;
+    }
 
     Ok(())
 }
 
 type Share = BTreeMap<String, Rep3AcvmType<ark_bn254::Fr>>;
-fn split_input(input_path: PathBuf, program_artifact: ProgramArtifact) -> Result<[Share; 3]> {
+fn split_input(
+    input_path: PathBuf,
+    program_artifact: ProgramArtifact,
+) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
     let inputs = co_noir::parse_input(input_path, &program_artifact)?;
 
     let mut rng = rand::thread_rng();
@@ -128,7 +152,7 @@ fn split_input(input_path: PathBuf, program_artifact: ProgramArtifact) -> Result
     Ok([share0, share1, share2])
 }
 
-fn spawn_party(
+struct DataForThread {
     id: PartyID,
     port: u16,
     key: PrivateKeyDer<'static>,
@@ -139,42 +163,58 @@ fn spawn_party(
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
-    // prover_crs: ProverCrs<Bn254>,
-    // verifier_crs: ark_bn254::Fr::G2Affine,
-) -> Result<()> {
-    let (prover_crs, verifier_crs) = crs.split();
+}
 
-    let start_network = Instant::now();
-    let network_config = NetworkConfig::new(
-        id.into(),
-        format!("0.0.0.0:{}", port).parse()?,
+fn spawn_party(
+    data: Arc<DataForThread>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    if let Ok(DataForThread {
+        id,
+        port,
         key,
         parties,
-        Some(Duration::from_secs(60)),
-    );
-    let mut net = Rep3MpcNet::new(network_config)?;
-    println!("network setup time: {:?}", start_network.elapsed());
+        share,
+        program_artifact,
+        constraint_system,
+        recursive,
+        has_zk,
+        crs,
+    }) = Arc::try_unwrap(data)
+    {
+        let (prover_crs, verifier_crs) = crs.split();
 
-    let start_proof = Instant::now();
+        let start_network = Instant::now();
+        let network_config = NetworkConfig::new(
+            id.into(),
+            format!("0.0.0.0:{}", port).parse()?,
+            key,
+            parties,
+            Some(Duration::from_secs(60)),
+        );
+        let net = Rep3MpcNet::new(network_config)?;
+        println!("network setup time: {:?}", start_network.elapsed());
 
-    // generate witness
-    let (witness_share, net) = co_noir::generate_witness_rep3(share, program_artifact, net)?;
+        let start_proof = Instant::now();
 
-    // generate proving key and vk
-    let (pk, net) =
-        co_noir::generate_proving_key_rep3(net, &constraint_system, witness_share, recursive)?;
-    let vk = pk.create_vk(&prover_crs, verifier_crs)?;
+        // generate witness
+        let (witness_share, net) = co_noir::generate_witness_rep3(share, program_artifact, net)?;
 
-    // generate proof
-    let (proof, _) = Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+        // generate proving key and vk
+        let (pk, net) =
+            co_noir::generate_proving_key_rep3(net, &constraint_system, witness_share, recursive)?;
+        let vk = pk.create_vk(&prover_crs, verifier_crs)?;
 
-    println!("proof time: {:?}", start_proof.elapsed());
+        // generate proof
+        let (proof, _) =
+            Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
 
-    // // verify proof
-    // assert!(
-    //     UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)
-    //         .context("while verifying proof")?
-    // );
+        println!("proof time: {:?}", start_proof.elapsed());
 
-    Ok(())
+        // verify proof
+        assert!(UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?);
+        Ok(())
+    } else {
+        println!("error");
+        Err("error".into())
+    }
 }
