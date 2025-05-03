@@ -1,3 +1,4 @@
+use axum::{Router, routing::get};
 use co_noir::{
     AcirFormat, Address, Bn254, CrsParser, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge,
     Rep3AcvmType, Rep3CoUltraHonk, Rep3MpcNet, UltraHonk, Utils,
@@ -18,9 +19,8 @@ use tracing_subscriber::{
     prelude::*,
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let start_setup = Instant::now();
-
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let fmt_layer = fmt::layer()
         .with_target(false)
         .with_line_number(false)
@@ -58,15 +58,12 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ),
     ];
 
-    // let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_vectors");
-
     let program_artifact = Utils::get_program_artifact_from_file(dir.join("circuit.json"))?;
     let constraint_system = Utils::get_constraint_system_from_artifact(&program_artifact, true);
 
     let recursive = true;
     let has_zk = ZeroKnowledge::No;
 
-    // parse crs
     let crs_size = co_noir::compute_circuit_size::<Bn254>(&constraint_system, recursive)?;
     let crs = CrsParser::<Bn254>::get_crs(
         dir.join("bn254_g1.dat"),
@@ -75,7 +72,39 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         has_zk,
     )?;
 
-    println!("setup time: {:?}", start_setup.elapsed());
+    let app = Router::new().route(
+        "/",
+        get(move || async move {
+            run_match(
+                dir,
+                parties,
+                program_artifact,
+                constraint_system,
+                recursive,
+                has_zk,
+                crs,
+            )
+            .await
+            .unwrap()
+        }),
+    );
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+
+    Ok(())
+}
+
+async fn run_match(
+    dir: PathBuf,
+    parties: Vec<NetworkParty>,
+    program_artifact: ProgramArtifact,
+    constraint_system: AcirFormat<ark_bn254::Fr>,
+    recursive: bool,
+    has_zk: ZeroKnowledge,
+    crs: Crs<Bn254>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let match_time = Instant::now();
 
     let [share0, share1, share2] = split_input(dir.join("Prover.toml"), program_artifact.clone())?;
 
@@ -132,8 +161,10 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ];
 
     for handle in handles {
-        let a = handle.join().unwrap()?;
+        let _ = handle.join().unwrap()?;
     }
+
+    println!("match time: {:?}", match_time.elapsed());
 
     Ok(())
 }
