@@ -1,0 +1,6 @@
+/target/
+/Cargo.lock
+
+/data/
+/config*.toml
+/run.sh
