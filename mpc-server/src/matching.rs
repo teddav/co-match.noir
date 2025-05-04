@@ -5,20 +5,26 @@ use co_noir::{
 use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
+use rusqlite::Connection;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
+use std::sync::Arc;
 use std::thread;
 use std::{
-    collections::BTreeMap,
     path::PathBuf,
     time::{Duration, Instant},
 };
 
+use crate::AppState;
+use crate::db::get_user;
 use crate::shares::{Share, get_shares};
+use crate::token::decode_token;
 
 pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
+pub const SHARES_DIR: Lazy<PathBuf> = Lazy::new(|| DIR.join("tmp"));
 
 pub async fn run_matches(
-    user_id: String,
+    state: Arc<AppState>,
+    token: String,
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
     constraint_system: AcirFormat<ark_bn254::Fr>,
@@ -26,23 +32,35 @@ pub async fn run_matches(
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    println!("token: {}", token);
+
+    let user_id = decode_token(token)?;
+    println!("user_id: {}", user_id);
     let shares_user = get_shares(&user_id)?;
-    let shares_other = get_shares(&user_id)?;
+    println!("shares_user: {:?}", shares_user);
 
-    let share0 = merge_shares(shares_user[0].clone(), shares_other[0].clone())?;
-    let share1 = merge_shares(shares_user[1].clone(), shares_other[1].clone())?;
-    let share2 = merge_shares(shares_user[2].clone(), shares_other[2].clone())?;
+    let conn = state.conn.lock().unwrap();
+    let user = get_user(&conn, &user_id)?;
+    println!("{user:?}");
 
-    run_match(
-        [share0, share1, share2],
-        parties,
-        program_artifact,
-        constraint_system,
-        recursive,
-        has_zk,
-        crs,
-    )
-    .await
+    // let shares_other = get_shares(&user_id)?;
+
+    // let share0 = merge_shares(shares_user[0].clone(), shares_other[0].clone())?;
+    // let share1 = merge_shares(shares_user[1].clone(), shares_other[1].clone())?;
+    // let share2 = merge_shares(shares_user[2].clone(), shares_other[2].clone())?;
+
+    // run_match(
+    //     [share0, share1, share2],
+    //     parties,
+    //     program_artifact,
+    //     constraint_system,
+    //     recursive,
+    //     has_zk,
+    //     crs,
+    // )
+    // .await
+
+    Ok(())
 }
 
 async fn run_match(
