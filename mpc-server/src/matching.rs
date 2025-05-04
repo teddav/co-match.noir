@@ -136,7 +136,7 @@ fn spawn_party(
     let start_network = Instant::now();
     let network_config = NetworkConfig::new(
         id.into(),
-        format!("0.0.0.0:{}", port).parse()?,
+        format!("[::]:{}", port).parse()?,
         key,
         parties,
         Some(Duration::from_secs(60)),
