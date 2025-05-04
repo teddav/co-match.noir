@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::{
     Json, Router,
-    extract::{Multipart, Query, State},
+    extract::{Multipart, Query},
     http::{Method, StatusCode},
     routing::{get, post},
 };
@@ -29,14 +29,9 @@ mod matching;
 mod shares;
 mod token;
 
-use db::{connect_db, get_all_users, get_user, insert_user, setup_db, update_checked};
+use db::{connect_db, get_all_users, setup_db};
 use matching::{DIR, run_matches};
 use shares::upload;
-
-#[derive(Debug)]
-pub struct AppState {
-    conn: Arc<Mutex<Connection>>,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct TokenQuery {
@@ -101,60 +96,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     )?;
 
     let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
-        // allow requests from any origin
         .allow_origin(Any);
 
-    things(&conn)?;
-
-    let state = Arc::new(AppState {
-        conn: Arc::new(Mutex::new(conn)),
-    });
+    // things(&conn)?;
 
     let app = Router::new()
         .route(
             "/",
-            get(
-                move |State(state): State<Arc<AppState>>, Query(token): Query<TokenQuery>| async move {
-                    match run_matches(
-                        state,
-                        token.token,
-                        parties,
-                        program_artifact,
-                        constraint_system,
-                        recursive,
-                        has_zk,
-                        crs,
-                    )
-                    .await
-                    {
-                        Ok(_) => (StatusCode::OK, Json("ok")),
-                        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("error")),
+            get(move |Query(token): Query<TokenQuery>| async move {
+                match run_matches(
+                    token.token,
+                    parties,
+                    program_artifact,
+                    constraint_system,
+                    recursive,
+                    has_zk,
+                    crs,
+                )
+                .await
+                {
+                    Ok(_) => (StatusCode::OK, Json("ok")),
+                    Err(e) => {
+                        println!("ERROR: {:?}", e);
+                        (StatusCode::INTERNAL_SERVER_ERROR, Json("error"))
                     }
-                },
-            ),
+                }
+            }),
         )
         .route(
             "/upload",
-            post(|State(state): State<Arc<AppState>>, Query(query): Query<UploadQuery>, multipart: Multipart| async {
-                println!("query: {:?}", query);
-                match upload(state, query.twitter_handle, multipart).await {
-                    Ok(token) => (StatusCode::OK, Json(json!({"token": token}))),
-                    Err(_) => (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({"error": "error"})),
-                    ),
-                }
-            }),
+            post(
+                |Query(query): Query<UploadQuery>, multipart: Multipart| async {
+                    println!("query: {:?}", query);
+                    match upload(query.twitter_handle, multipart).await {
+                        Ok(token) => (StatusCode::OK, Json(json!({"token": token}))),
+                        Err(e) => {
+                            println!("ERROR: {:?}", e);
+                            (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                Json(json!({"error": "error"})),
+                            )
+                        }
+                    }
+                },
+            ),
         )
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
-        )
-        .with_state(state);
+        );
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
     axum::serve(listener, app).await?;

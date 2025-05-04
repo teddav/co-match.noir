@@ -1,12 +1,11 @@
 use axum::extract::Multipart;
 use co_noir::Rep3AcvmType;
 use rand::{Rng, distributions::Alphanumeric};
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use crate::{
-    AppState,
-    db::{does_hash_exist, insert_user},
-    matching::{DIR, SHARES_DIR},
+    db::{connect_db, does_hash_exist, insert_user},
+    matching::{SHARES_DIR_1, SHARES_DIR_2},
     token::encode_token,
 };
 
@@ -15,7 +14,6 @@ const MAX_SHARE_SIZE: usize = 1024;
 pub type Share = BTreeMap<String, Rep3AcvmType<ark_bn254::Fr>>;
 
 pub async fn upload(
-    state: Arc<AppState>,
     twitter_handle: String,
     mut multipart: Multipart,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -31,28 +29,40 @@ pub async fn upload(
         shares.push(data);
     }
 
-    if shares.len() != 3 {
+    if shares.len() != 6 {
         return Err("Invalid number of shares".into());
     }
 
-    let dir = SHARES_DIR.clone();
+    let dir1 = SHARES_DIR_1.clone();
+    let dir2 = SHARES_DIR_2.clone();
 
     // TODO: remove this
-    std::fs::remove_dir_all(&dir)?;
+    std::fs::remove_dir_all(&dir1)?;
+    std::fs::remove_dir_all(&dir2)?;
 
-    std::fs::create_dir_all(&dir)?;
+    std::fs::create_dir_all(&dir1)?;
+    std::fs::create_dir_all(&dir2)?;
+
+    let shares1 = shares[..3].to_vec();
+    let shares2 = shares[3..].to_vec();
+
     let user_id = random_id();
 
-    let conn = state.conn.lock().unwrap();
+    let conn = connect_db()?;
 
-    let hash = format!("{:x}", md5::compute(shares.concat()));
+    let hash = format!("{:x}", md5::compute(shares2.concat()));
     if does_hash_exist(&conn, &hash)? {
         return Err("Hash already exists".into());
     }
 
-    for (i, share) in shares.iter().enumerate() {
+    for (i, share) in shares1.iter().enumerate() {
         let file_name = format!("{}-{}", user_id, i);
-        let file_path = dir.join(file_name);
+        let file_path = dir1.join(file_name);
+        std::fs::write(file_path, share)?;
+    }
+    for (i, share) in shares2.iter().enumerate() {
+        let file_name = format!("{}-{}", user_id, i);
+        let file_path = dir2.join(file_name);
         std::fs::write(file_path, share)?;
     }
 
@@ -63,8 +73,15 @@ pub async fn upload(
     Ok(token)
 }
 
-pub fn get_shares(id: &str) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync>> {
-    let dir = SHARES_DIR.clone();
+pub fn get_shares(
+    id: &str,
+    user1: bool,
+) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync>> {
+    let dir = if user1 {
+        SHARES_DIR_1.clone()
+    } else {
+        SHARES_DIR_2.clone()
+    };
     let share0 = bin_to_share(std::fs::read(dir.join(format!("{id}-0")))?)?;
     let share1 = bin_to_share(std::fs::read(dir.join(format!("{id}-1")))?)?;
     let share2 = bin_to_share(std::fs::read(dir.join(format!("{id}-2")))?)?;

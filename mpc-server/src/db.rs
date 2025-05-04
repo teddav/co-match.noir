@@ -58,9 +58,11 @@ pub fn insert_user(
         return Err("Invalid twitter handle".into());
     }
 
+    let checked = serde_json::to_string(&vec![id])?;
+
     conn.execute(
-        "INSERT INTO users (id, twitter_handle, hash) VALUES (?1, ?2, ?3)",
-        (id, twitter_handle, hash),
+        "INSERT INTO users (id, twitter_handle, checked, hash) VALUES (?1, ?2, ?3, ?4)",
+        (id, twitter_handle, checked, hash),
     )?;
 
     Ok(())

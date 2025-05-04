@@ -5,25 +5,22 @@ use co_noir::{
 use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
-use rusqlite::Connection;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
-use std::sync::Arc;
 use std::thread;
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
 
-use crate::AppState;
-use crate::db::get_user;
+use crate::db::{connect_db, get_all_users, get_user};
 use crate::shares::{Share, get_shares};
 use crate::token::decode_token;
 
 pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
-pub const SHARES_DIR: Lazy<PathBuf> = Lazy::new(|| DIR.join("tmp"));
+pub const SHARES_DIR_1: Lazy<PathBuf> = Lazy::new(|| DIR.join("user1"));
+pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DIR.join("user2"));
 
 pub async fn run_matches(
-    state: Arc<AppState>,
     token: String,
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
@@ -32,33 +29,38 @@ pub async fn run_matches(
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    println!("token: {}", token);
-
     let user_id = decode_token(token)?;
-    println!("user_id: {}", user_id);
-    let shares_user = get_shares(&user_id)?;
-    println!("shares_user: {:?}", shares_user);
 
-    let conn = state.conn.lock().unwrap();
-    let user = get_user(&conn, &user_id)?;
-    println!("{user:?}");
+    let conn = connect_db()?;
 
-    // let shares_other = get_shares(&user_id)?;
+    let user1 = get_user(&conn, &user_id)?;
+    let all_users = get_all_users(&conn)?
+        .into_iter()
+        .filter(|u| !user1.checked.contains(&u.id))
+        .collect::<Vec<_>>();
+    println!("{all_users:?}");
 
-    // let share0 = merge_shares(shares_user[0].clone(), shares_other[0].clone())?;
-    // let share1 = merge_shares(shares_user[1].clone(), shares_other[1].clone())?;
-    // let share2 = merge_shares(shares_user[2].clone(), shares_other[2].clone())?;
+    for user2 in all_users {
+        let shares_user1 = get_shares(&user1.id, true)?;
+        let shares_user2 = get_shares(&user2.id, false)?;
 
-    // run_match(
-    //     [share0, share1, share2],
-    //     parties,
-    //     program_artifact,
-    //     constraint_system,
-    //     recursive,
-    //     has_zk,
-    //     crs,
-    // )
-    // .await
+        let share0 = merge_shares(shares_user1[0].clone(), shares_user2[0].clone())?;
+        let share1 = merge_shares(shares_user1[1].clone(), shares_user2[1].clone())?;
+        let share2 = merge_shares(shares_user1[2].clone(), shares_user2[2].clone())?;
+
+        let match_result = run_match(
+            [share0, share1, share2],
+            parties.clone(),
+            program_artifact.clone(),
+            constraint_system.clone(),
+            recursive,
+            has_zk,
+            crs.clone(),
+        )
+        .await;
+
+        println!("match_result: {:?}", match_result);
+    }
 
     Ok(())
 }
