@@ -1,7 +1,21 @@
+import { useState } from "react";
 import Preferences from "./Preferences";
 import Shares from "./Shares";
 
+interface ShareData {
+  shares: Uint8Array[];
+  // Add other response fields as needed
+}
+
 export default function Home() {
+  const [showPreferences, setShowPreferences] = useState(true);
+  const [shareData, setShareData] = useState<ShareData | null>(null);
+
+  const handlePreferencesSubmit = (data: ShareData) => {
+    setShareData(data);
+    setShowPreferences(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -20,8 +34,7 @@ export default function Home() {
           </ol>
         </div>
         <div className="grid gap-8">
-          <Preferences />
-          <Shares />
+          {showPreferences ? <Preferences onSubmit={handlePreferencesSubmit} /> : <Shares shareData={shareData} />}
         </div>
       </div>
     </div>

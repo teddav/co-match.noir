@@ -29,6 +29,9 @@ import { useState } from "react";
 //   },
 // };
 interface UserPreferences {
+  id: string;
+  id_nullifier: number;
+
   age: number;
   gender: number;
   interests: number[];
@@ -38,6 +41,10 @@ interface UserPreferences {
     age_max: number;
     gender: number;
   };
+}
+
+interface PreferencesProps {
+  onSubmit: (data: { shares: Uint8Array[] }) => void;
 }
 
 const INTERESTS = [
@@ -53,8 +60,11 @@ const INTERESTS = [
   { id: 10, label: "Technology" },
 ];
 
-export default function Preferences() {
+export default function Preferences({ onSubmit }: PreferencesProps) {
   const [preferences, setPreferences] = useState<UserPreferences>({
+    id: "0x1fed07ad686a727dfc33b91206d526e61f519dca9c5054ae729231c201717633",
+    id_nullifier: 12345,
+
     age: 25,
     gender: 0,
     interests: [],
@@ -85,6 +95,11 @@ export default function Preferences() {
       });
       const response_data = await res.json();
       console.log("response_data", response_data);
+
+      // Convert the response data to Uint8Array shares
+      const shares = response_data.shares.map((share: string) => new Uint8Array(share.split(",").map(Number)));
+
+      onSubmit({ shares });
     } catch (error) {
       console.log(error);
     }

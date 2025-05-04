@@ -1,6 +1,4 @@
 use rusqlite::{Connection, Error};
-use serde::Deserialize;
-use serde_json::from_str;
 
 use crate::matching::DIR;
 
