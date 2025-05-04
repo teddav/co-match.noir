@@ -1,6 +1,6 @@
 use co_noir::{
     AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3AcvmType,
-    Rep3CoUltraHonk, Rep3MpcNet, UltraHonk,
+    Rep3CoUltraHonk, Rep3MpcNet, UltraHonk, merge_input_shares,
 };
 use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
@@ -13,9 +13,40 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::shares::{Share, get_shares};
+
 pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
 
-pub async fn run_match(
+pub async fn run_matches(
+    user_id: String,
+    parties: Vec<NetworkParty>,
+    program_artifact: ProgramArtifact,
+    constraint_system: AcirFormat<ark_bn254::Fr>,
+    recursive: bool,
+    has_zk: ZeroKnowledge,
+    crs: Crs<Bn254>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let shares_user = get_shares(&user_id)?;
+    let shares_other = get_shares(&user_id)?;
+
+    let share0 = merge_shares(shares_user[0].clone(), shares_other[0].clone())?;
+    let share1 = merge_shares(shares_user[1].clone(), shares_other[1].clone())?;
+    let share2 = merge_shares(shares_user[2].clone(), shares_other[2].clone())?;
+
+    run_match(
+        [share0, share1, share2],
+        parties,
+        program_artifact,
+        constraint_system,
+        recursive,
+        has_zk,
+        crs,
+    )
+    .await
+}
+
+async fn run_match(
+    [share0, share1, share2]: [Share; 3],
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
     constraint_system: AcirFormat<ark_bn254::Fr>,
@@ -25,7 +56,7 @@ pub async fn run_match(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let match_time = Instant::now();
 
-    let [share0, share1, share2] = split_input(DIR.join("Prover.toml"), program_artifact.clone())?;
+    // let [share0, share1, share2] = split_input(DIR.join("Prover.toml"), program_artifact.clone())?;
 
     let data0 = DataForThread {
         id: PartyID::ID0,
@@ -88,7 +119,6 @@ pub async fn run_match(
     Ok(())
 }
 
-type Share = BTreeMap<String, Rep3AcvmType<ark_bn254::Fr>>;
 fn split_input(
     input_path: PathBuf,
     program_artifact: ProgramArtifact,
@@ -100,6 +130,14 @@ fn split_input(
         co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
 
     Ok([share0, share1, share2])
+}
+
+fn merge_shares(
+    share_user1: Share,
+    share_user2: Share,
+) -> Result<Share, Box<dyn std::error::Error + Send + Sync>> {
+    let merged = merge_input_shares::<Bn254>(vec![share_user1, share_user2])?;
+    Ok(merged)
 }
 
 struct DataForThread {

@@ -1,14 +1,11 @@
 use axum::{
-    Router,
-    extract::Multipart,
+    Json, Router,
+    extract::{Multipart, Query},
     http::{Method, StatusCode},
     routing::{get, post},
 };
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
 use co_ultrahonk::prelude::ZeroKnowledge;
-use color_eyre::eyre;
-use eyre::Result;
-use rand::{Rng, distributions::Alphanumeric};
 use rustls::pki_types::CertificateDer;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -21,8 +18,13 @@ use tracing_subscriber::{
     prelude::*,
 };
 
+mod db;
 mod matching;
-use matching::{DIR, run_match};
+mod shares;
+
+use db::{connect_db, setup_db};
+use matching::{DIR, run_matches};
+use shares::upload;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -40,7 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .install_default()
         .unwrap();
 
-    // let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data");
+    let conn = connect_db()?;
+    setup_db(&conn)?;
 
     // connect to network
     let parties = vec![
@@ -84,8 +87,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app = Router::new()
         .route(
             "/",
-            get(move || async move {
-                match run_match(
+            get(move |Query(token): Query<String>| async move {
+                match run_matches(
+                    token,
                     parties,
                     program_artifact,
                     constraint_system,
@@ -95,8 +99,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 )
                 .await
                 {
-                    Ok(_) => (StatusCode::OK, "ok"),
-                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "error"),
+                    Ok(_) => (StatusCode::OK, Json("ok")),
+                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("error")),
                 }
             }),
         )
@@ -104,8 +108,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "/upload",
             post(|multipart: Multipart| async {
                 match upload(multipart).await {
-                    Ok(_) => (StatusCode::OK, "ok"),
-                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "error"),
+                    Ok(id) => (StatusCode::OK, Json(id)),
+                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("error".to_string())),
                 }
             }),
         )
@@ -120,28 +124,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn upload(mut multipart: Multipart) -> Result<()> {
-    while let Some(field) = multipart.next_field().await? {
-        let data = field.bytes().await?;
-        println!("data: {data:?}");
-
-        let file_name = random_id();
-        let dir = DIR.join("tmp");
-        std::fs::create_dir_all(&dir)?;
-
-        let file_path = dir.join(file_name);
-        std::fs::write(file_path, data)?;
-    }
-
-    Ok(())
-}
-
-fn random_id() -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect()
 }
