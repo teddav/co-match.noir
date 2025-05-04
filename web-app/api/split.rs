@@ -23,15 +23,24 @@ pub async fn handler(req: Request) -> Result<Response<Body>, Error> {
         Ok(Some(payload)) => payload,
     };
 
-    let prover_path = save_prover_data(&payload, false)?;
+    let prover_path1 = save_prover_data(&payload, false)?;
+    let prover_path2 = save_prover_data(&payload, true)?;
     let circuit_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(CIRCUIT_PATH);
 
-    let shares = split_input(&circuit_path, &prover_path)?;
+    let shares1 = split_input(&circuit_path, &prover_path1)?;
+    let shares2 = split_input(&circuit_path, &prover_path2)?;
 
-    let out = shares
+    let mut out = shares1
         .iter()
         .map(|d| hex::encode(d))
         .collect::<Vec<String>>();
+
+    let out2 = shares2
+        .iter()
+        .map(|d| hex::encode(d))
+        .collect::<Vec<String>>();
+
+    out.extend(out2);
 
     Ok(Response::builder()
         .status(StatusCode::OK)

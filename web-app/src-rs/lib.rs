@@ -7,7 +7,6 @@ use vercel_runtime::Error;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Prover {
     user1: User,
-    user2: User,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
