@@ -1,11 +1,13 @@
 use axum::{
-    Json, Router,
+    Router,
     extract::Multipart,
-    http::Method,
+    http::{Method, StatusCode},
     routing::{get, post},
 };
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
 use co_ultrahonk::prelude::ZeroKnowledge;
+use color_eyre::eyre;
+use eyre::Result;
 use rand::{Rng, distributions::Alphanumeric};
 use rustls::pki_types::CertificateDer;
 use tower_http::{
@@ -83,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route(
             "/",
             get(move || async move {
-                run_match(
+                match run_match(
                     parties,
                     program_artifact,
                     constraint_system,
@@ -92,10 +94,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     crs,
                 )
                 .await
-                .unwrap()
+                {
+                    Ok(_) => (StatusCode::OK, "ok"),
+                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "error"),
+                }
             }),
         )
-        .route("/upload", post(upload))
+        .route(
+            "/upload",
+            post(|multipart: Multipart| async {
+                match upload(multipart).await {
+                    Ok(_) => (StatusCode::OK, "ok"),
+                    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "error"),
+                }
+            }),
+        )
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()
@@ -109,21 +122,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 
-async fn upload(mut multipart: Multipart) -> Json<String> {
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
-        println!("{name:?} {data:?}");
+async fn upload(mut multipart: Multipart) -> Result<()> {
+    while let Some(field) = multipart.next_field().await? {
+        let data = field.bytes().await?;
+        println!("data: {data:?}");
 
         let file_name = random_id();
         let dir = DIR.join("tmp");
-        tokio::fs::create_dir_all(&dir).await.unwrap();
+        std::fs::create_dir_all(&dir)?;
 
         let file_path = dir.join(file_name);
-        tokio::fs::write(file_path, data).await.unwrap();
+        std::fs::write(file_path, data)?;
     }
 
-    Json("ok".to_string())
+    Ok(())
 }
 
 fn random_id() -> String {
