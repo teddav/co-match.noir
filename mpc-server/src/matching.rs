@@ -1,0 +1,165 @@
+use co_noir::{
+    AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3AcvmType,
+    Rep3CoUltraHonk, Rep3MpcNet, UltraHonk,
+};
+use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
+use noirc_artifacts::program::ProgramArtifact;
+use once_cell::sync::Lazy;
+use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
+use std::thread;
+use std::{
+    collections::BTreeMap,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
+
+pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
+
+pub async fn run_match(
+    parties: Vec<NetworkParty>,
+    program_artifact: ProgramArtifact,
+    constraint_system: AcirFormat<ark_bn254::Fr>,
+    recursive: bool,
+    has_zk: ZeroKnowledge,
+    crs: Crs<Bn254>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let match_time = Instant::now();
+
+    let [share0, share1, share2] = split_input(DIR.join("Prover.toml"), program_artifact.clone())?;
+
+    let data0 = DataForThread {
+        id: PartyID::ID0,
+        port: 10000,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            DIR.join("key0.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share0,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
+        recursive,
+        has_zk,
+        crs: crs.clone(),
+    };
+    let data1 = DataForThread {
+        id: PartyID::ID1,
+        port: 10001,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            DIR.join("key1.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share1,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
+        recursive,
+        has_zk,
+        crs: crs.clone(),
+    };
+    let data2 = DataForThread {
+        id: PartyID::ID2,
+        port: 10002,
+        key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
+            DIR.join("key2.der"),
+        )?))
+        .clone_key(),
+        parties: parties.clone(),
+        share: share2,
+        program_artifact: program_artifact.clone(),
+        constraint_system: constraint_system.clone(),
+        recursive,
+        has_zk,
+        crs: crs.clone(),
+    };
+
+    let handles = vec![
+        thread::spawn(move || spawn_party(data0)),
+        thread::spawn(move || spawn_party(data1)),
+        thread::spawn(move || spawn_party(data2)),
+    ];
+
+    for handle in handles {
+        let _ = handle.join().unwrap()?;
+    }
+
+    println!("match time: {:?}", match_time.elapsed());
+
+    Ok(())
+}
+
+type Share = BTreeMap<String, Rep3AcvmType<ark_bn254::Fr>>;
+fn split_input(
+    input_path: PathBuf,
+    program_artifact: ProgramArtifact,
+) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let inputs = co_noir::parse_input(input_path, &program_artifact)?;
+
+    let mut rng = rand::thread_rng();
+    let [share0, share1, share2] =
+        co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
+
+    Ok([share0, share1, share2])
+}
+
+struct DataForThread {
+    id: PartyID,
+    port: u16,
+    key: PrivateKeyDer<'static>,
+    parties: Vec<NetworkParty>,
+    share: Share,
+    program_artifact: ProgramArtifact,
+    constraint_system: AcirFormat<ark_bn254::Fr>,
+    recursive: bool,
+    has_zk: ZeroKnowledge,
+    crs: Crs<Bn254>,
+}
+
+fn spawn_party(
+    data: DataForThread,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let DataForThread {
+        id,
+        port,
+        key,
+        parties,
+        share,
+        program_artifact,
+        constraint_system,
+        recursive,
+        has_zk,
+        crs,
+    } = data;
+
+    let (prover_crs, verifier_crs) = crs.split();
+
+    let start_network = Instant::now();
+    let network_config = NetworkConfig::new(
+        id.into(),
+        format!("0.0.0.0:{}", port).parse()?,
+        key,
+        parties,
+        Some(Duration::from_secs(60)),
+    );
+    let net = Rep3MpcNet::new(network_config)?;
+    println!("network setup time: {:?}", start_network.elapsed());
+
+    let start_proof = Instant::now();
+
+    // generate witness
+    let (witness_share, net) = co_noir::generate_witness_rep3(share, program_artifact, net)?;
+
+    // generate proving key and vk
+    let (pk, net) =
+        co_noir::generate_proving_key_rep3(net, &constraint_system, witness_share, recursive)?;
+    let vk = pk.create_vk(&prover_crs, verifier_crs)?;
+
+    // generate proof
+    let (proof, _) = Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+
+    println!("proof time: {:?}", start_proof.elapsed());
+
+    // verify proof
+    assert!(UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?);
+    Ok(())
+}
