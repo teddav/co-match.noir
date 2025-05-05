@@ -1,36 +1,7 @@
 import { useState } from "react";
 
-// const data = {
-//   user1: {
-//     age: 30,
-//     gender: 0,
-//     id: "0x1fed07ad686a727dfc33b91206d526e61f519dca9c5054ae729231c201717633",
-//     id_nullifier: 12345,
-//     interests: [5, 8, 10],
-//     region: 1,
-//     preferences: {
-//       age_max: 35,
-//       age_min: 25,
-//       gender: 1,
-//     },
-//   },
-//   user2: {
-//     age: 32,
-//     gender: 1,
-//     id: "0x16e31ced6c74696a601f45f1bb2b9833380d51348fe89644360d0e5abeaf244a",
-//     id_nullifier: 67890,
-//     interests: [10, 20, 30],
-//     region: 1,
-//     preferences: {
-//       age_max: 35,
-//       age_min: 25,
-//       gender: 1,
-//     },
-//   },
-// };
 interface UserPreferences {
   id: string;
-  id_nullifier: number;
 
   age: number;
   gender: number;
@@ -48,23 +19,23 @@ interface PreferencesProps {
 }
 
 const INTERESTS = [
-  { id: 1, label: "Travel" },
-  { id: 2, label: "Music" },
-  { id: 3, label: "Cooking" },
-  { id: 4, label: "Sports" },
-  { id: 5, label: "Reading" },
-  { id: 6, label: "Movies" },
-  { id: 7, label: "Fitness" },
-  { id: 8, label: "Art" },
-  { id: 9, label: "Photography" },
-  { id: 10, label: "Technology" },
+  { id: 1, label: "Zero-Knowledge Proofs" },
+  { id: 2, label: "Multi-Party Computation" },
+  { id: 3, label: "Fully Homomorphic Encryption" },
+  { id: 4, label: "Noir" },
+  { id: 5, label: "I'm not fun..." },
+];
+
+const REGIONS = [
+  { id: 1, label: "Africa" },
+  { id: 2, label: "Americas" },
+  { id: 3, label: "Asia" },
+  { id: 4, label: "Europe" },
 ];
 
 export default function Preferences({ onSubmit }: PreferencesProps) {
   const [preferences, setPreferences] = useState<UserPreferences>({
-    id: "0x1fed07ad686a727dfc33b91206d526e61f519dca9c5054ae729231c201717633",
-    id_nullifier: 12345,
-
+    id: "0x" + Math.random().toString(16).substring(2, 15), // doesn't matter...
     age: 25,
     gender: 0,
     interests: [],
@@ -85,6 +56,7 @@ export default function Preferences({ onSubmit }: PreferencesProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("preferences", preferences);
     try {
       const res = await fetch("/api/split", {
         method: "POST",
@@ -131,6 +103,21 @@ export default function Preferences({ onSubmit }: PreferencesProps) {
             >
               <option value={0}>Female</option>
               <option value={1}>Male</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Your Region</label>
+            <select
+              value={preferences.region}
+              onChange={(e) => setPreferences({ ...preferences, region: parseInt(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              {REGIONS.map((region) => (
+                <option key={region.id} value={region.id}>
+                  {region.label}
+                </option>
+              ))}
             </select>
           </div>
 

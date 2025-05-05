@@ -6,7 +6,6 @@ pub struct Preferences {
 
 pub struct User {
     pub id: Field,
-    pub id_nullifier: Field,
     pub age: u8,
     pub gender: u8, // 0: female, 1: male
     pub region: u8,

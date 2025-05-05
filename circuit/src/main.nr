@@ -47,10 +47,11 @@ fn check_interests(user1: User, user2: User) -> bool {
 }
 
 fn main(user1: User, user2: User) -> pub bool {
-    let id_nullifier_hash1 = std::hash::poseidon2::Poseidon2::hash([user1.id_nullifier], 1);
-    let id_nullifier_hash2 = std::hash::poseidon2::Poseidon2::hash([user2.id_nullifier], 1);
-    assert(user1.id == id_nullifier_hash1);
-    assert(user2.id == id_nullifier_hash2);
+    // removed hash to make circuit smaller
+    // let id_nullifier_hash1 = std::hash::poseidon2::Poseidon2::hash([user1.id_nullifier], 1);
+    // let id_nullifier_hash2 = std::hash::poseidon2::Poseidon2::hash([user2.id_nullifier], 1);
+    // assert(user1.id == id_nullifier_hash1);
+    // assert(user2.id == id_nullifier_hash2);
     assert(user1.id != user2.id);
 
     let mut is_match: bool = true;

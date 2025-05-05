@@ -14,7 +14,6 @@ struct User {
     age: u32,
     gender: u32,
     id: String,
-    id_nullifier: u32,
     interests: Vec<u32>,
     region: u32,
     preferences: Preferences,

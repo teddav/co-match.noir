@@ -1,6 +1,6 @@
 use co_noir::{
-    AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3AcvmType,
-    Rep3CoUltraHonk, Rep3MpcNet, UltraHonk, merge_input_shares,
+    AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3CoUltraHonk,
+    Rep3MpcNet, UltraHonk, merge_input_shares,
 };
 use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
@@ -67,6 +67,7 @@ pub async fn run_matches(
         }
     }
 
+    println!("verified_matches: {:#?}", verified_matches);
     Ok(verified_matches)
 }
 

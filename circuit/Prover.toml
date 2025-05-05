@@ -3,7 +3,6 @@ age = 30
 region = 1
 gender = 0
 id = "0x1fed07ad686a727dfc33b91206d526e61f519dca9c5054ae729231c201717633"
-id_nullifier = 12345
 interests = [5, 8, 10]
 
 [user1.preferences]
@@ -16,7 +15,6 @@ age = 32
 region = 1
 gender = 1
 id = "0x16e31ced6c74696a601f45f1bb2b9833380d51348fe89644360d0e5abeaf244a"
-id_nullifier = 67890
 interests = [10, 20, 30]
 
 [user2.preferences]

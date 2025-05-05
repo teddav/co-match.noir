@@ -100,7 +100,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .allow_origin(Any)
         .allow_headers(Any);
 
-    // things(&conn)?;
+    // run_matches(
+    //     "X07AIOvKrB".to_string(),
+    //     parties,
+    //     program_artifact,
+    //     constraint_system,
+    //     recursive,
+    //     has_zk,
+    //     crs,
+    // )
+    // .await?;
 
     let app = Router::new()
         .route(
@@ -152,24 +161,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
     axum::serve(listener, app).await?;
-
-    Ok(())
-}
-
-fn things(conn: &Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let token = encode_token("V2IBcEl7dx".to_string())?;
-    println!("token: {}", token);
-
-    // insert_user(&conn, "abc", "@abc", "h123")?;
-    // insert_user(&conn, "def", "@def", "h456")?;
-
-    // let user = get_user(&conn, "abc")?;
-    // println!("abc: {:?}", user);
-
-    // update_checked(&conn, "abc", vec!["abc".to_string(), "def".to_string()])?;
-
-    let users = get_all_users(&conn)?;
-    println!("users: {:#?}", users);
 
     Ok(())
 }
