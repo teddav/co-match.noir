@@ -4,3 +4,5 @@
 /data/
 /config*.toml
 /run.sh
+
+.env

@@ -1,44 +1,71 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-interface Match {
-  id: string;
-  twitter_handle: string;
-}
+type Match = string;
 
 export default function Matches() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchMatches = async () => {
-      const token = localStorage.getItem("co-match-token");
-      if (!token) {
-        setError("No token found. Please try uploading your shares again.");
-        setLoading(false);
-        return;
-      }
+  const fetchMatches = async () => {
+    const token = localStorage.getItem("co-match-token");
+    if (!token) {
+      setError("No token found. Please try uploading your shares again.");
+      return;
+    }
 
-      try {
-        const response = await fetch("http://localhost:8000/", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    setLoading(true);
+    setError(null);
 
-        const data = await response.json();
-        setMatches(data);
-      } catch (error) {
-        console.error(error);
+    try {
+      const response = await fetch("http://localhost:8000/matches", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      console.log("DATA", data);
+      setMatches(data.matches);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const computeNewMatches = async () => {
+    console.log("COMPUTING NEW MATCHES");
+    const token = localStorage.getItem("co-match-token");
+    if (!token) {
+      setError("No token found. Please try uploading your shares again.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("http://localhost:8000/", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      console.log("DATA", data);
+      if (data == "ok") {
+        fetchMatches();
+      } else {
         setError("Failed to get matches. Please try again.");
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchMatches();
-  }, []);
+    } catch (error) {
+      console.error(error);
+      setError("Failed to get matches. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -58,6 +85,12 @@ export default function Matches() {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">Error</h2>
         <div className="p-4 bg-red-50 text-red-700 rounded-md">{error}</div>
+        <button
+          onClick={computeNewMatches}
+          className="mt-4 w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -66,24 +99,37 @@ export default function Matches() {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">No Matches Yet</h2>
-        <p className="text-gray-600">We haven&apos;t found any matches for you yet. Don&apos;t worry, we&apos;ll notify you when we do!</p>
+        <p className="text-gray-600 mb-6">Click the button below to check for matches!</p>
+        <button
+          onClick={computeNewMatches}
+          className="w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+        >
+          Check for Matches
+        </button>
       </div>
     );
   }
 
+  console.log("MATCHES", matches);
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Your Matches</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-gray-800">Your Matches</h2>
+        <button onClick={computeNewMatches} className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
+          Refresh Matches
+        </button>
+      </div>
       <div className="space-y-4">
         {matches.map((match_) => (
-          <div key={match_.id} className="border rounded-lg p-4 hover:bg-gray-50">
+          <div key={match_} className="border rounded-lg p-4 hover:bg-gray-50">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">@{match_.twitter_handle}</h3>
+                <h3 className="text-lg font-medium text-gray-900">@{match_}</h3>
                 <p className="text-sm text-gray-500">You have a match! 🎉</p>
               </div>
               <a
-                href={`https://twitter.com/${match_.twitter_handle}`}
+                href={`https://twitter.com/${match_}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-purple-600 hover:text-purple-700"

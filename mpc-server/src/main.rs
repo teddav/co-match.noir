@@ -3,16 +3,15 @@ use std::sync::{Arc, Mutex};
 use axum::{
     Json, Router,
     extract::{Multipart, Query},
-    http::{HeaderMap, Method, StatusCode},
+    http::StatusCode,
     routing::{get, post},
 };
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
 use co_ultrahonk::prelude::ZeroKnowledge;
-use rusqlite::Connection;
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
 use serde_json::json;
-use token::{Token, encode_token};
+use token::Token;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::{self, TraceLayer},
@@ -29,14 +28,9 @@ mod matching;
 mod shares;
 mod token;
 
-use db::{connect_db, get_all_users, setup_db};
+use db::{connect_db, get_matches, setup_db};
 use matching::{DIR, run_matches};
 use shares::upload;
-
-#[derive(Debug, Deserialize)]
-pub struct TokenQuery {
-    token: String,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct UploadQuery {
@@ -45,6 +39,8 @@ pub struct UploadQuery {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    dotenv::dotenv().ok();
+
     let fmt_layer = fmt::layer()
         .with_target(false)
         .with_line_number(false)
@@ -59,8 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .install_default()
         .unwrap();
 
-    let conn = connect_db()?;
-    setup_db(&conn)?;
+    let conn = Arc::new(Mutex::new(connect_db()?));
+    setup_db(&conn.lock().unwrap())?;
 
     // connect to network
     let parties = vec![
@@ -100,17 +96,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .allow_origin(Any)
         .allow_headers(Any);
 
-    // run_matches(
-    //     "X07AIOvKrB".to_string(),
-    //     parties,
-    //     program_artifact,
-    //     constraint_system,
-    //     recursive,
-    //     has_zk,
-    //     crs,
-    // )
-    // .await?;
-
     let app = Router::new()
         .route(
             "/",
@@ -130,6 +115,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     Err(e) => {
                         println!("ERROR: {:?}", e);
                         (StatusCode::INTERNAL_SERVER_ERROR, Json("error"))
+                    }
+                }
+            }),
+        )
+        .route(
+            "/matches",
+            get(move |token: Token| async move {
+                match get_matches(&conn.lock().unwrap(), token.user_id) {
+                    Ok(matches) => (StatusCode::OK, Json(json!({"matches": matches}))),
+                    Err(e) => {
+                        println!("ERROR: {:?}", e);
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(json!({"error": "error"})),
+                        )
                     }
                 }
             }),

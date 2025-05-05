@@ -1,7 +1,7 @@
 use axum::{
     Json, RequestPartsExt,
     extract::FromRequestParts,
-    http::{Error, StatusCode, request::Parts},
+    http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
 use axum_extra::{
@@ -9,11 +9,11 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-// TODO: move to env
-const SECRET: &str = "secret_secret_secret_secret_secret_secret";
+const SECRET: Lazy<String> = Lazy::new(|| std::env::var("JWT_SECRET").unwrap());
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Token {
@@ -42,18 +42,18 @@ pub fn encode_token(user_id: String) -> Result<String, Box<dyn std::error::Error
 
 #[derive(Debug)]
 pub enum AuthError {
-    WrongCredentials,
-    MissingCredentials,
-    TokenCreation,
+    // WrongCredentials,
+    // MissingCredentials,
+    // TokenCreation,
     InvalidToken,
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
-            AuthError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
-            AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error"),
+            // AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
+            // AuthError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
+            // AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error"),
             AuthError::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
         };
         let body: Json<_> = Json(json!({

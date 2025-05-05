@@ -1,20 +1,21 @@
-use rusqlite::{Connection, Error};
+use std::collections::HashSet;
+
+use rusqlite::{Connection, Error, params_from_iter};
 
 use crate::matching::DIR;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: String,
     pub twitter_handle: String,
     pub checked: Vec<String>,
-    pub hash: String,
 }
 
-#[derive(Debug)]
-struct Match {
-    id: u32,
-    user_id1: u32,
-    user_id2: u32,
+#[derive(Debug, Clone)]
+pub struct Match {
+    pub id: u32,
+    pub user_id1: String,
+    pub user_id2: String,
 }
 
 pub fn connect_db() -> Result<Connection, Box<dyn std::error::Error + Send + Sync>> {
@@ -27,18 +28,18 @@ pub fn setup_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error + Sen
         "CREATE TABLE IF NOT EXISTS users (
             id                  TEXT NOT NULL UNIQUE,
             twitter_handle      TEXT NOT NULL,
-            checked             TEXT NOT NULL DEFAULT '[]',
-            hash                TEXT NOT NULL
+            checked             TEXT NOT NULL DEFAULT '[]'
         )",
         (), // empty list of parameters.
     )?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS matches (
             id          INTEGER PRIMARY KEY,
-            user_id1    INTEGER NOT NULL,
-            user_id2    INTEGER NOT NULL,
+            user_id1    TEXT NOT NULL,
+            user_id2    TEXT NOT NULL,
             FOREIGN KEY (user_id1) REFERENCES users(id),
-            FOREIGN KEY (user_id2) REFERENCES users(id)
+            FOREIGN KEY (user_id2) REFERENCES users(id),
+            UNIQUE(user_id1, user_id2)
         )",
         (),
     )?;
@@ -50,7 +51,6 @@ pub fn insert_user(
     conn: &Connection,
     id: &str,
     twitter_handle: &str,
-    hash: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if twitter_handle.is_empty() || twitter_handle.len() > 30 {
         return Err("Invalid twitter handle".into());
@@ -59,8 +59,8 @@ pub fn insert_user(
     let checked = serde_json::to_string(&vec![id])?;
 
     conn.execute(
-        "INSERT INTO users (id, twitter_handle, checked, hash) VALUES (?1, ?2, ?3, ?4)",
-        (id, twitter_handle, checked, hash),
+        "INSERT INTO users (id, twitter_handle, checked) VALUES (?1, ?2, ?3)",
+        (id, twitter_handle, checked),
     )?;
 
     Ok(())
@@ -77,7 +77,6 @@ pub fn get_user(
             id: row.get(0)?,
             twitter_handle: row.get(1)?,
             checked: serde_json::from_str(&checked).map_err(|_| rusqlite::Error::InvalidQuery)?,
-            hash: row.get(3)?,
         })
     })?;
 
@@ -94,7 +93,6 @@ pub fn get_all_users(
             id: row.get(0)?,
             twitter_handle: row.get(1)?,
             checked: serde_json::from_str(&checked).map_err(|_| rusqlite::Error::InvalidQuery)?,
-            hash: row.get(3)?,
         })
     })?;
 
@@ -108,8 +106,9 @@ pub fn update_checked(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let user = get_user(conn, user_id)?;
 
-    let mut checked = user.checked;
+    let mut checked: HashSet<String> = user.checked.into_iter().collect();
     checked.extend(new_checked);
+    println!("checked: {:?}", checked);
 
     conn.execute(
         "UPDATE users SET checked = ?1 WHERE id = ?2",
@@ -118,21 +117,23 @@ pub fn update_checked(
     Ok(())
 }
 
-fn insert_match(
+pub fn insert_matches(
     conn: &Connection,
-    user_id1: u32,
-    user_id2: u32,
-) -> Result<(), Box<dyn std::error::Error>> {
-    conn.execute(
-        "INSERT INTO matches (user_id1, user_id2) VALUES (?1, ?2)",
-        (user_id1, user_id2),
-    )?;
+    matches: Vec<(String, String)>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut stmt = conn.prepare("INSERT INTO matches (user_id1, user_id2) VALUES (?1, ?2)")?;
+    for (user_id1, user_id2) in matches {
+        stmt.execute((user_id1, user_id2))?;
+    }
     Ok(())
 }
 
-fn get_matches(conn: &Connection, user_id: u32) -> Result<Vec<Match>, Box<dyn std::error::Error>> {
+pub fn get_matches(
+    conn: &Connection,
+    user_id: String,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
     let mut stmt = conn.prepare("SELECT * FROM matches WHERE (user_id1 = ?1 OR user_id2 = ?1)")?;
-    let matches = stmt.query_map([user_id], |row| {
+    let matches = stmt.query_map([user_id.clone()], |row| {
         Ok(Match {
             id: row.get(0)?,
             user_id1: row.get(1)?,
@@ -140,17 +141,34 @@ fn get_matches(conn: &Connection, user_id: u32) -> Result<Vec<Match>, Box<dyn st
         })
     })?;
 
-    Ok(matches
+    let matches = matches
         .into_iter()
         .map(|m| m)
-        .collect::<Result<Vec<Match>, Error>>()?)
-}
+        .collect::<Result<Vec<Match>, Error>>()?
+        .iter()
+        .map(|m| {
+            if m.user_id1 == user_id.clone() {
+                m.user_id2.clone()
+            } else {
+                m.user_id1.clone()
+            }
+        })
+        .collect::<Vec<String>>();
 
-pub fn does_hash_exist(
-    conn: &Connection,
-    hash: &str,
-) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-    let mut stmt = conn.prepare("SELECT COUNT(*) FROM users WHERE hash = ?1")?;
-    let count: i32 = stmt.query_row([hash], |row| row.get(0))?;
-    Ok(count > 0)
+    fn repeat_vars(count: usize) -> String {
+        assert_ne!(count, 0);
+        let mut s = "?,".repeat(count);
+        // Remove trailing comma
+        s.pop();
+        s
+    }
+
+    let mut stmt = conn.prepare(&format!(
+        "SELECT twitter_handle FROM users WHERE id IN ({})",
+        repeat_vars(matches.iter().count())
+    ))?;
+    let user_matches = stmt.query_map(params_from_iter(matches.iter()), |row| row.get(0))?;
+    let user_matches = user_matches.collect::<Result<Vec<String>, Error>>()?;
+
+    Ok(user_matches)
 }

@@ -15,15 +15,15 @@ interface UserPreferences {
 
 interface SharesProps {
   preferences: UserPreferences;
+  getMatches: () => void;
 }
 
-export default function Shares({ preferences }: SharesProps) {
+export default function Shares({ preferences, getMatches }: SharesProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [matchError, setMatchError] = useState<string | null>(null);
   const [twitterHandle, setTwitterHandle] = useState("");
   const [shares, setShares] = useState<Uint8Array[]>([]);
 
@@ -97,30 +97,6 @@ export default function Shares({ preferences }: SharesProps) {
       setUploadError("Failed to upload shares. Please try again.");
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const getMatches = async () => {
-    const token = localStorage.getItem("co-match-token");
-    if (!token) {
-      setMatchError("No token found. Please try uploading your shares again.");
-      setUploadComplete(false);
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:8000/", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      console.log("Matches:", data);
-    } catch (error) {
-      console.error(error);
-      setMatchError("Failed to get matches. Please try again.");
     }
   };
 
@@ -205,8 +181,6 @@ export default function Shares({ preferences }: SharesProps) {
               <p className="text-sm text-gray-500">Process your encrypted profile to find matches</p>
             </div>
           </div>
-
-          {matchError && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">{matchError}</div>}
 
           <button
             onClick={getMatches}

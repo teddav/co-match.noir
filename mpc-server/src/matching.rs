@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::db::{connect_db, get_all_users, get_user};
+use crate::db::{connect_db, get_all_users, get_user, insert_matches, update_checked};
 use crate::shares::{Share, get_shares};
 
 pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
@@ -27,7 +27,7 @@ pub async fn run_matches(
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let conn = connect_db()?;
 
     let user1 = get_user(&conn, &user_id)?;
@@ -37,9 +37,21 @@ pub async fn run_matches(
         .collect::<Vec<_>>();
     println!("all users: {all_users:?}");
 
+    update_checked(
+        &conn,
+        &user1.id,
+        all_users
+            .clone()
+            .into_iter()
+            .map(|u| u.id)
+            .collect::<Vec<String>>(),
+    )?;
+
     let mut verified_matches = Vec::new();
 
     for user2 in all_users {
+        update_checked(&conn, &user2.id, vec![user_id.clone()])?;
+
         let shares_user1 = get_shares(&user1.id, true)?;
         let shares_user2 = get_shares(&user2.id, false)?;
 
@@ -67,8 +79,14 @@ pub async fn run_matches(
         }
     }
 
-    println!("verified_matches: {:#?}", verified_matches);
-    Ok(verified_matches)
+    insert_matches(
+        &conn,
+        verified_matches
+            .iter()
+            .map(|m| (user_id.clone(), m.clone()))
+            .collect(),
+    )?;
+    Ok(())
 }
 
 async fn run_match(
@@ -81,8 +99,6 @@ async fn run_match(
     crs: Crs<Bn254>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let match_time = Instant::now();
-
-    // let [share0, share1, share2] = split_input(DIR.join("Prover.toml"), program_artifact.clone())?;
 
     let data0 = DataForThread {
         id: PartyID::ID0,
@@ -148,18 +164,18 @@ async fn run_match(
     Ok(())
 }
 
-fn split_input(
-    input_path: PathBuf,
-    program_artifact: ProgramArtifact,
-) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let inputs = co_noir::parse_input(input_path, &program_artifact)?;
+// fn split_input(
+//     input_path: PathBuf,
+//     program_artifact: ProgramArtifact,
+// ) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
+//     let inputs = co_noir::parse_input(input_path, &program_artifact)?;
 
-    let mut rng = rand::thread_rng();
-    let [share0, share1, share2] =
-        co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
+//     let mut rng = rand::thread_rng();
+//     let [share0, share1, share2] =
+//         co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
 
-    Ok([share0, share1, share2])
-}
+//     Ok([share0, share1, share2])
+// }
 
 fn merge_shares(
     share_user1: Share,

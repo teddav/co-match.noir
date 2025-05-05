@@ -4,7 +4,7 @@ use rand::{Rng, distributions::Alphanumeric};
 use std::collections::BTreeMap;
 
 use crate::{
-    db::{connect_db, does_hash_exist, insert_user},
+    db::{connect_db, insert_user},
     matching::{SHARES_DIR_1, SHARES_DIR_2},
     token::encode_token,
 };
@@ -21,7 +21,6 @@ pub async fn upload(
     let mut shares = Vec::new();
     while let Some(field) = multipart.next_field().await? {
         let data = field.bytes().await?;
-        println!("data: {data:?}");
 
         if data.len() < MIN_SHARE_SIZE || data.len() > MAX_SHARE_SIZE {
             return Err("Invalid share size".into());
@@ -37,10 +36,6 @@ pub async fn upload(
     let dir1 = SHARES_DIR_1.clone();
     let dir2 = SHARES_DIR_2.clone();
 
-    // TODO: remove this
-    // std::fs::remove_dir_all(&dir1)?;
-    // std::fs::remove_dir_all(&dir2)?;
-
     std::fs::create_dir_all(&dir1)?;
     std::fs::create_dir_all(&dir2)?;
 
@@ -48,13 +43,6 @@ pub async fn upload(
     let shares2 = shares[3..].to_vec();
 
     let user_id = random_id();
-
-    let conn = connect_db()?;
-
-    let hash = format!("{:x}", md5::compute(shares2.concat()));
-    if does_hash_exist(&conn, &hash)? {
-        return Err("Hash already exists".into());
-    }
 
     for (i, share) in shares1.iter().enumerate() {
         let file_name = format!("{}-{}", user_id, i);
@@ -67,7 +55,8 @@ pub async fn upload(
         std::fs::write(file_path, share)?;
     }
 
-    insert_user(&conn, &user_id, &twitter_handle, &hash)?;
+    let conn = connect_db()?;
+    insert_user(&conn, &user_id, &twitter_handle)?;
 
     let token = encode_token(user_id)?;
 

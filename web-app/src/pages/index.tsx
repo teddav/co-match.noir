@@ -29,12 +29,16 @@ export default function Home() {
     setShowPreferences(false);
   };
 
+  const handleMatchesSubmit = () => {
+    setView("matches");
+  };
+
   const renderContent = () => {
     switch (view) {
       case "preferences":
         return <Preferences onSubmit={handlePreferencesSubmit} />;
       case "shares":
-        return preferences ? <Shares preferences={preferences} /> : null;
+        return preferences ? <Shares preferences={preferences} getMatches={handleMatchesSubmit} /> : null;
       case "matches":
         return <Matches />;
       default:
