@@ -6,12 +6,10 @@ use structs::User;
 fn check_age(user1: User, user2: User) -> bool {
     let mut is_match: bool = true;
 
-    // user1 preferences
     if (user1.age < user2.preferences.age_min) | (user1.age > user2.preferences.age_max) {
         is_match = false;
     }
 
-    // user2 preferences
     if (user2.age < user1.preferences.age_min) | (user2.age > user1.preferences.age_max) {
         is_match = false;
     }
@@ -21,6 +19,11 @@ fn check_age(user1: User, user2: User) -> bool {
 
 fn check_gender(user1: User, user2: User) -> bool {
     let mut is_match: bool = true;
+
+    assert(user1.gender <= 1);
+    assert(user2.gender <= 1);
+    assert(user1.preferences.gender <= 2);
+    assert(user2.preferences.gender <= 2);
 
     // user1 preferences
     if (user1.preferences.gender != user2.gender) & (user1.preferences.gender != 2) {
@@ -39,6 +42,7 @@ fn check_interests(user1: User, user2: User) -> bool {
     let mut is_match: bool = false;
 
     for interest in user1.interests {
+        assert(interest <= 8);
         if user2.interests.any(|i| i == interest) {
             is_match = true;
         }
