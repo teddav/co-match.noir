@@ -9,7 +9,8 @@ use crate::{
     token::encode_token,
 };
 
-const MAX_SHARE_SIZE: usize = 1024;
+const MIN_SHARE_SIZE: usize = 500;
+const MAX_SHARE_SIZE: usize = 2000;
 
 pub type Share = BTreeMap<String, Rep3AcvmType<ark_bn254::Fr>>;
 
@@ -22,7 +23,7 @@ pub async fn upload(
         let data = field.bytes().await?;
         println!("data: {data:?}");
 
-        if data.len() > MAX_SHARE_SIZE {
+        if data.len() < MIN_SHARE_SIZE || data.len() > MAX_SHARE_SIZE {
             return Err("Invalid share size".into());
         }
 
@@ -37,8 +38,8 @@ pub async fn upload(
     let dir2 = SHARES_DIR_2.clone();
 
     // TODO: remove this
-    std::fs::remove_dir_all(&dir1)?;
-    std::fs::remove_dir_all(&dir2)?;
+    // std::fs::remove_dir_all(&dir1)?;
+    // std::fs::remove_dir_all(&dir2)?;
 
     std::fs::create_dir_all(&dir1)?;
     std::fs::create_dir_all(&dir2)?;

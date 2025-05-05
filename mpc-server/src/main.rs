@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use axum::{
     Json, Router,
     extract::{Multipart, Query},
-    http::{Method, StatusCode},
+    http::{HeaderMap, Method, StatusCode},
     routing::{get, post},
 };
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
 use serde_json::json;
-use token::encode_token;
+use token::{Token, encode_token};
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::{self, TraceLayer},
@@ -96,17 +96,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     )?;
 
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST])
-        .allow_origin(Any);
+        .allow_methods(Any)
+        .allow_origin(Any)
+        .allow_headers(Any);
 
     // things(&conn)?;
 
     let app = Router::new()
         .route(
             "/",
-            get(move |Query(token): Query<TokenQuery>| async move {
+            get(move |token: Token| async move {
                 match run_matches(
-                    token.token,
+                    token.user_id,
                     parties,
                     program_artifact,
                     constraint_system,

@@ -14,23 +14,20 @@ use std::{
 
 use crate::db::{connect_db, get_all_users, get_user};
 use crate::shares::{Share, get_shares};
-use crate::token::decode_token;
 
 pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
 pub const SHARES_DIR_1: Lazy<PathBuf> = Lazy::new(|| DIR.join("user1"));
 pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DIR.join("user2"));
 
 pub async fn run_matches(
-    token: String,
+    user_id: String,
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
     constraint_system: AcirFormat<ark_bn254::Fr>,
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let user_id = decode_token(token)?;
-
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let conn = connect_db()?;
 
     let user1 = get_user(&conn, &user_id)?;
@@ -38,7 +35,9 @@ pub async fn run_matches(
         .into_iter()
         .filter(|u| !user1.checked.contains(&u.id))
         .collect::<Vec<_>>();
-    println!("{all_users:?}");
+    println!("all users: {all_users:?}");
+
+    let mut verified_matches = Vec::new();
 
     for user2 in all_users {
         let shares_user1 = get_shares(&user1.id, true)?;
@@ -48,7 +47,7 @@ pub async fn run_matches(
         let share1 = merge_shares(shares_user1[1].clone(), shares_user2[1].clone())?;
         let share2 = merge_shares(shares_user1[2].clone(), shares_user2[2].clone())?;
 
-        let match_result = run_match(
+        match run_match(
             [share0, share1, share2],
             parties.clone(),
             program_artifact.clone(),
@@ -57,12 +56,18 @@ pub async fn run_matches(
             has_zk,
             crs.clone(),
         )
-        .await;
-
-        println!("match_result: {:?}", match_result);
+        .await
+        {
+            Ok(_) => {
+                verified_matches.push(user2.id);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
     }
 
-    Ok(())
+    Ok(verified_matches)
 }
 
 async fn run_match(
@@ -131,7 +136,10 @@ async fn run_match(
     ];
 
     for handle in handles {
-        let _ = handle.join().unwrap()?;
+        let verified = handle.join().unwrap()?;
+        if !verified {
+            return Err("Proof verification failed".into());
+        }
     }
 
     println!("match time: {:?}", match_time.elapsed());
@@ -175,7 +183,7 @@ struct DataForThread {
 
 fn spawn_party(
     data: DataForThread,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let DataForThread {
         id,
         port,
@@ -217,7 +225,7 @@ fn spawn_party(
 
     println!("proof time: {:?}", start_proof.elapsed());
 
-    // verify proof
-    assert!(UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?);
-    Ok(())
+    let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?;
+
+    Ok(verified)
 }
