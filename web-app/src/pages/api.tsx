@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getMatches = async (token: string) => {
   const response = await fetch(`${API_URL}/matches`, {

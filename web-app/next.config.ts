@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  /* config options here */
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_API_URL: isProduction ? "http://94.130.176.20:8000" : "http://localhost:8000",
+  },
 };
 
 export default nextConfig;
