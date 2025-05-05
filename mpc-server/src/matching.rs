@@ -6,6 +6,7 @@ use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
+use std::sync::Arc;
 use std::thread;
 use std::{
     path::PathBuf,
@@ -23,7 +24,7 @@ pub async fn run_matches(
     user_id: String,
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
-    constraint_system: AcirFormat<ark_bn254::Fr>,
+    constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
@@ -93,7 +94,7 @@ async fn run_match(
     [share0, share1, share2]: [Share; 3],
     parties: Vec<NetworkParty>,
     program_artifact: ProgramArtifact,
-    constraint_system: AcirFormat<ark_bn254::Fr>,
+    constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,
@@ -192,7 +193,7 @@ struct DataForThread {
     parties: Vec<NetworkParty>,
     share: Share,
     program_artifact: ProgramArtifact,
-    constraint_system: AcirFormat<ark_bn254::Fr>,
+    constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
     crs: Crs<Bn254>,

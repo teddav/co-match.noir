@@ -78,7 +78,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ];
 
     let program_artifact = Utils::get_program_artifact_from_file(DIR.join("circuit.json"))?;
-    let constraint_system = Utils::get_constraint_system_from_artifact(&program_artifact, true);
+    let constraint_system = Arc::new(Utils::get_constraint_system_from_artifact(
+        &program_artifact,
+        true,
+    ));
 
     let recursive = true;
     let has_zk = ZeroKnowledge::No;
