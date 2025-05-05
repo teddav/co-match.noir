@@ -23,7 +23,8 @@ pub fn connect_db() -> Result<Connection, Box<dyn std::error::Error + Send + Syn
     Ok(conn)
 }
 
-pub fn setup_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn setup_db() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let conn = connect_db()?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS users (
             id                  TEXT NOT NULL UNIQUE,
@@ -129,9 +130,9 @@ pub fn insert_matches(
 }
 
 pub fn get_matches(
-    conn: &Connection,
     user_id: String,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let conn = connect_db()?;
     let mut stmt = conn.prepare("SELECT * FROM matches WHERE (user_id1 = ?1 OR user_id2 = ?1)")?;
     let matches = stmt.query_map([user_id.clone()], |row| {
         Ok(Match {
@@ -154,6 +155,10 @@ pub fn get_matches(
             }
         })
         .collect::<Vec<String>>();
+
+    if matches.is_empty() {
+        return Ok(vec![]);
+    }
 
     fn repeat_vars(count: usize) -> String {
         assert_ne!(count, 0);

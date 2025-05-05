@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getMatches, postMatches } from "./api";
 
 type Match = string;
 
@@ -18,14 +19,7 @@ export default function Matches() {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/matches", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await getMatches(token);
       console.log("DATA", data);
       setMatches(data.matches);
     } catch (error) {
@@ -45,14 +39,7 @@ export default function Matches() {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await postMatches(token);
       console.log("DATA", data);
       if (data == "ok") {
         fetchMatches();
@@ -121,24 +108,38 @@ export default function Matches() {
         </button>
       </div>
       <div className="space-y-4">
-        {matches.map((match_) => (
-          <div key={match_} className="border rounded-lg p-4 hover:bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">@{match_}</h3>
-                <p className="text-sm text-gray-500">You have a match! 🎉</p>
+        {matches.map((match_) => {
+          const handle = match_.startsWith("@") ? match_.slice(1) : match_;
+
+          return (
+            <div key={match_} className="border rounded-lg p-4 hover:bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">@{handle}</h3>
+                  <p className="text-sm text-gray-500">You have a match! 🎉</p>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={`https://twitter.com/${handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 border border-purple-600 text-purple-700 rounded-md hover:bg-purple-50 transition-colors text-sm font-medium"
+                  >
+                    View Profile →
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=I'm a match with @${handle} on Co-Match!!! ❤️ %0APrivate dating made possible thanks to Noir and coSNARKs🪄🥳 %0AThanks @TACEO_IO @NoirLang @0xteddav&url=https://co-match.vercel.app`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    Send a love message
+                  </a>
+                </div>
               </div>
-              <a
-                href={`https://twitter.com/${match_}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-600 hover:text-purple-700"
-              >
-                View Profile →
-              </a>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -55,10 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .install_default()
         .unwrap();
 
-    let conn = Arc::new(Mutex::new(connect_db()?));
-    setup_db(&conn.lock().unwrap())?;
+    setup_db()?;
 
-    // connect to network
     let parties = vec![
         NetworkParty::new(
             PartyID::ID0.into(),
@@ -100,9 +98,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .allow_headers(Any);
 
     let app = Router::new()
+        .route("/", get(|| async { "hello" }))
         .route(
-            "/",
-            get(move |token: Token| async move {
+            "/matches",
+            post(move |token: Token| async move {
                 match run_matches(
                     token.user_id,
                     parties,
@@ -125,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route(
             "/matches",
             get(move |token: Token| async move {
-                match get_matches(&conn.lock().unwrap(), token.user_id) {
+                match get_matches(token.user_id) {
                     Ok(matches) => (StatusCode::OK, Json(json!({"matches": matches}))),
                     Err(e) => {
                         println!("ERROR: {:?}", e);

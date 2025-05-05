@@ -5,10 +5,26 @@ import Matches from "./Matches";
 
 type View = "preferences" | "shares" | "matches";
 
+const CIRCUIT_VERSION = 1;
+
 export default function Home() {
   const [view, setView] = useState<View>("preferences");
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [showPreferences, setShowPreferences] = useState(false);
+
+  useEffect(() => {
+    const storedVersion = localStorage.getItem("co-match-circuit-version");
+    if (storedVersion !== String(CIRCUIT_VERSION)) {
+      // Version changed or not set, reset everything
+      localStorage.clear();
+      localStorage.setItem("co-match-circuit-version", String(CIRCUIT_VERSION));
+      setView("preferences");
+      setPreferences(null);
+      setShowPreferences(false);
+      window.location.reload();
+      return;
+    }
+  }, []);
 
   useEffect(() => {
     const savedPreferences = localStorage.getItem("co-match-preferences");

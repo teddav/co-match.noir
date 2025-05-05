@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { postShares } from "./api";
 
 interface UserPreferences {
   id: string;
@@ -75,12 +76,7 @@ export default function Shares({ preferences, getMatches }: SharesProps) {
         twitter_handle: twitterHandle,
       });
 
-      const response = await fetch("http://localhost:8000/upload?" + params.toString(), {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
+      const data = await postShares(params, formData);
       console.log("DATA:", data);
 
       if (data.error) {
