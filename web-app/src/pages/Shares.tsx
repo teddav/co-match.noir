@@ -10,9 +10,14 @@ export default function Shares({ shareData }: SharesProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [twitterHandle, setTwitterHandle] = useState("");
 
   const uploadShares = async () => {
     if (!shareData) return;
+    if (!twitterHandle) {
+      setUploadError("Please enter your Twitter handle");
+      return;
+    }
 
     setIsUploading(true);
     setUploadError(null);
@@ -27,7 +32,7 @@ export default function Shares({ shareData }: SharesProps) {
       });
 
       const params = new URLSearchParams({
-        twitter_handle: "@HELLO",
+        twitter_handle: twitterHandle,
       });
 
       const response = await fetch("http://localhost:8000/upload?" + params.toString(), {
@@ -36,8 +41,17 @@ export default function Shares({ shareData }: SharesProps) {
       });
 
       const data = await response.json();
-      console.log(data);
-      setUploadComplete(true);
+      console.log("DATA:", data);
+
+      if (data.error) {
+        setUploadError(data.error);
+      } else {
+        // Store the token in localStorage
+        if (data.token) {
+          localStorage.setItem("co-match-token", data.token);
+        }
+        setUploadComplete(true);
+      }
     } catch (error) {
       console.error(error);
       setUploadError("Failed to upload shares. Please try again.");
@@ -46,9 +60,28 @@ export default function Shares({ shareData }: SharesProps) {
     }
   };
 
-  const handleSecondAction = () => {
-    // This will be implemented later
-    console.log("Second action triggered");
+  const getMatches = async () => {
+    const token = localStorage.getItem("co-match-token");
+    if (!token) {
+      setUploadError("No token found. Please try uploading your shares again.");
+      setUploadComplete(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      console.log("Matches:", data);
+    } catch (error) {
+      console.error(error);
+      setUploadError("Failed to get matches. Please try again.");
+    }
   };
 
   return (
@@ -56,6 +89,24 @@ export default function Shares({ shareData }: SharesProps) {
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Share Management</h2>
 
       <div className="space-y-6">
+        {/* Twitter Handle Input */}
+        <div className="border rounded-lg p-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Twitter Handle</h3>
+            <p className="text-sm text-gray-600 mb-4">To allow your matches to contact you, please enter your Twitter handle.</p>
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-500">@</span>
+              <input
+                type="text"
+                value={twitterHandle}
+                onChange={(e) => setTwitterHandle(e.target.value.replace("@", ""))}
+                placeholder="your_twitter_handle"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* First Step */}
         <div className="border rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
@@ -70,9 +121,9 @@ export default function Shares({ shareData }: SharesProps) {
 
           <button
             onClick={uploadShares}
-            disabled={isUploading || uploadComplete || !shareData}
+            disabled={isUploading || uploadComplete || !shareData || !twitterHandle}
             className={`w-full py-2 px-4 rounded-md transition-colors ${
-              isUploading || uploadComplete || !shareData
+              isUploading || uploadComplete || !shareData || !twitterHandle
                 ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                 : "bg-purple-600 text-white hover:bg-purple-700"
             }`}
@@ -85,19 +136,19 @@ export default function Shares({ shareData }: SharesProps) {
         <div className="border rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Step 2: Process Shares</h3>
-              <p className="text-sm text-gray-500">Process your shares to find matches</p>
+              <h3 className="text-lg font-medium text-gray-900">Step 2: Match!!!</h3>
+              <p className="text-sm text-gray-500">Process your encrypted profile to find matches</p>
             </div>
           </div>
 
           <button
-            onClick={handleSecondAction}
+            onClick={getMatches}
             disabled={!uploadComplete}
             className={`w-full py-2 px-4 rounded-md transition-colors ${
               !uploadComplete ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-600 text-white hover:bg-purple-700"
             }`}
           >
-            Process Shares
+            Get Matches! ❤️
           </button>
         </div>
       </div>

@@ -97,7 +97,7 @@ export default function Preferences({ onSubmit }: PreferencesProps) {
       console.log("response_data", response_data);
 
       // Convert the response data to Uint8Array shares
-      const shares = response_data.shares.map((share: string) => new Uint8Array(share.split(",").map(Number)));
+      const shares = response_data.shares.map((share: string) => Uint8Array.from(Buffer.from(share, "hex")));
 
       onSubmit({ shares });
     } catch (error) {
@@ -215,8 +215,18 @@ export default function Preferences({ onSubmit }: PreferencesProps) {
           </div>
         </div>
 
-        <button type="submit" className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
-          Save Preferences
+        <button
+          type="submit"
+          disabled={preferences.interests.length !== 3}
+          className={`w-full py-2 px-4 rounded-md transition-colors ${
+            preferences.interests.length !== 3
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-purple-600 text-white hover:bg-purple-700"
+          }`}
+        >
+          {preferences.interests.length === 3
+            ? "Save Preferences"
+            : `Select ${3 - preferences.interests.length} more interest${3 - preferences.interests.length === 1 ? "" : "s"}`}
         </button>
       </form>
     </div>

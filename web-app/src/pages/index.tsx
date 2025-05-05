@@ -23,11 +23,11 @@ export default function Home() {
         <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 mb-8 shadow-sm">
           <h2 className="text-xl font-semibold text-purple-700 mb-3">How It Works</h2>
           <p className="text-gray-700 mb-4">
-            Co-Match is a privacy-focused dating app that uses zero-knowledge proofs to match you with potential partners without revealing
-            your personal information. Here&apos;s how it works:
+            Co-Match is a privacy-focused dating app that uses <b>zero-knowledge proofs</b> and <b>multiparty computation</b> to match you
+            with potential partners without revealing your personal information. Here&apos;s how it works:
           </p>
           <ol className="list-decimal list-inside space-y-2 text-gray-600">
-            <li>Set your preferences and interests (you can select up to 3 interests)</li>
+            <li>Set your profile and preferences (you can select up to 3 interests)</li>
             <li>Our system will find potential matches based on your criteria</li>
             <li>If there&apos;s a mutual match, you&apos;ll both be notified</li>
             <li>Your personal data remains private throughout the entire process</li>
