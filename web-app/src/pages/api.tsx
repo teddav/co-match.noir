@@ -1,3 +1,5 @@
+import { UserPreferences } from "./Preferences";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getMatches = async (token: string) => {
@@ -26,4 +28,15 @@ export const postShares = async (urlParams: URLSearchParams, formData: FormData)
     body: formData,
   });
   return response.json();
+};
+
+export const splitPreferences = async (preferences: UserPreferences) => {
+  const res = await fetch(`${API_URL}/split`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user1: preferences }),
+  });
+  return res.json();
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { postShares } from "./api";
+import { postShares, splitPreferences } from "./api";
 
 interface UserPreferences {
   id: string;
@@ -32,14 +32,7 @@ export default function Shares({ preferences, getMatches }: SharesProps) {
     setIsGenerating(true);
     setGenerateError(null);
     try {
-      const res = await fetch("/api/split", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user1: preferences }),
-      });
-      const response_data = await res.json();
+      const response_data = await splitPreferences(preferences);
       console.log("response_data", response_data);
 
       // Convert the response data to Uint8Array shares

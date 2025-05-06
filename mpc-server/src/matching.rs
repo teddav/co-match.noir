@@ -26,7 +26,7 @@ pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DATA_DIR.join("user2"));
 pub async fn run_matches(
     user_id: String,
     parties: Vec<NetworkParty>,
-    program_artifact: ProgramArtifact,
+    program_artifact: &ProgramArtifact,
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
@@ -66,7 +66,7 @@ pub async fn run_matches(
         match run_match(
             [share0, share1, share2],
             parties.clone(),
-            program_artifact.clone(),
+            program_artifact,
             constraint_system.clone(),
             recursive,
             has_zk,
@@ -96,7 +96,7 @@ pub async fn run_matches(
 async fn run_match(
     [share0, share1, share2]: [Share; 3],
     parties: Vec<NetworkParty>,
-    program_artifact: ProgramArtifact,
+    program_artifact: &ProgramArtifact,
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
@@ -167,19 +167,6 @@ async fn run_match(
 
     Ok(())
 }
-
-// fn split_input(
-//     input_path: PathBuf,
-//     program_artifact: ProgramArtifact,
-// ) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
-//     let inputs = co_noir::parse_input(input_path, &program_artifact)?;
-
-//     let mut rng = rand::thread_rng();
-//     let [share0, share1, share2] =
-//         co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
-
-//     Ok([share0, share1, share2])
-// }
 
 fn merge_shares(
     share_user1: Share,

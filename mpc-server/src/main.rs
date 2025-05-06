@@ -27,9 +27,9 @@ mod matching;
 mod shares;
 mod token;
 
-use db::{connect_db, get_matches, setup_db};
+use db::{get_matches, setup_db};
 use matching::{CONFIG_DIR, DATA_DIR, run_matches};
-use shares::upload;
+use shares::{ProverData, split_handler, upload};
 
 #[derive(Debug, Deserialize)]
 pub struct UploadQuery {
@@ -96,15 +96,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .allow_origin(Any)
         .allow_headers(Any);
 
+    let p = program_artifact.clone();
+
     let app = Router::new()
         .route("/", get(|| async { "hello" }))
+        .route(
+            "/split",
+            post(|payload: Json<ProverData>| async move {
+                match split_handler(payload.0, &p).await {
+                    Ok(shares) => (StatusCode::OK, Json(json!({"shares": shares}))),
+                    Err(e) => {
+                        println!("ERROR: {:?}", e);
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(json!({"error": "error"})),
+                        )
+                    }
+                }
+            }),
+        )
         .route(
             "/matches",
             post(move |token: Token| async move {
                 match run_matches(
                     token.user_id,
                     parties,
-                    program_artifact,
+                    &program_artifact,
                     constraint_system,
                     recursive,
                     has_zk,
