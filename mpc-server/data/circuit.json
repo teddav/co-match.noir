@@ -190,7 +190,7 @@
             "path": "std/array/mod.nr"
         },
         "61": {
-            "source": "use crate::structs::User;\n\npub fn check_region(user1: User, user2: User) -> bool {\n    assert(user1.region < regions.len() as u8);\n    let mut is_match: bool = true;\n\n    if user1.region != user2.region {\n        is_match = false;\n    }\n\n    is_match\n}\n\nglobal regions: [u8; 4] = [\n    001, // Africa\n    002, // Americas\n    003, // Asia\n    004, // Europe\n];\n",
+            "source": "use crate::structs::User;\n\npub fn check_region(user1: User, user2: User) -> bool {\n    assert(user1.region < regions.len() as u8);\n    let mut is_match: bool = true;\n\n    if user1.region != user2.region {\n        is_match = false;\n    }\n\n    is_match\n}\n\nglobal regions: [u8; 4] = [001, 002, 003, 004];\n",
             "path": "/app/src/location.nr"
         },
         "62": {

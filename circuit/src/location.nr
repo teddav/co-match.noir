@@ -11,9 +11,4 @@ pub fn check_region(user1: User, user2: User) -> bool {
     is_match
 }
 
-global regions: [u8; 4] = [
-    001, // Africa
-    002, // Americas
-    003, // Asia
-    004, // Europe
-];
+global regions: [u8; 4] = [001, 002, 003, 004];

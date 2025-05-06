@@ -10,7 +10,7 @@ const CIRCUIT_VERSION = 1;
 export default function Home() {
   const [view, setView] = useState<View>("preferences");
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
-  const [showPreferences, setShowPreferences] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(true);
 
   useEffect(() => {
     const storedVersion = localStorage.getItem("co-match-circuit-version");
@@ -33,6 +33,7 @@ export default function Home() {
     if (savedPreferences && token) {
       setView("matches");
       setPreferences(JSON.parse(savedPreferences));
+      setShowPreferences(false);
     } else if (savedPreferences) {
       setView("shares");
       setPreferences(JSON.parse(savedPreferences));
@@ -52,7 +53,7 @@ export default function Home() {
   const renderContent = () => {
     switch (view) {
       case "preferences":
-        return <Preferences onSubmit={handlePreferencesSubmit} />;
+        return <></>;
       case "shares":
         return preferences ? <Shares preferences={preferences} getMatches={handleMatchesSubmit} /> : null;
       case "matches":
@@ -83,21 +84,23 @@ export default function Home() {
         </div>
 
         {view !== "preferences" && (
-          <button
-            onClick={() => setShowPreferences(!showPreferences)}
-            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
-          >
-            {showPreferences ? "Hide Preferences" : "View Preferences"}
-          </button>
+          <div className="flex justify-center my-8">
+            <button
+              onClick={() => setShowPreferences(!showPreferences)}
+              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+            >
+              {showPreferences ? "Hide Preferences" : "View Preferences"}
+            </button>
+          </div>
         )}
+
         <div className="grid gap-8">
-          {showPreferences ? (
+          {showPreferences && (
             <div className="space-y-8">
               <Preferences onSubmit={handlePreferencesSubmit} />
             </div>
-          ) : (
-            renderContent()
           )}
+          {renderContent()}
         </div>
       </div>
     </div>

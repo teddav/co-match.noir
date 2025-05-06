@@ -27,10 +27,10 @@ const INTERESTS = [
 ];
 
 const REGIONS = [
-  { id: 1, label: "Africa" },
+  { id: 1, label: "Europe" },
   { id: 2, label: "Americas" },
   { id: 3, label: "Asia" },
-  { id: 4, label: "Europe" },
+  { id: 4, label: "Africa" },
 ];
 
 export default function Preferences({ onSubmit }: PreferencesProps) {
@@ -43,7 +43,7 @@ export default function Preferences({ onSubmit }: PreferencesProps) {
     preferences: {
       age_min: 20,
       age_max: 80,
-      gender: 1,
+      gender: 2,
     },
   });
 
