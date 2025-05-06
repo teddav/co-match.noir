@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
-use co_ultrahonk::prelude::ZeroKnowledge;
+use co_ultrahonk::prelude::{ProverCrs, ZeroKnowledge};
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
 use serde_json::json;
@@ -89,12 +89,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let has_zk = ZeroKnowledge::No;
 
     let crs_size = co_noir::compute_circuit_size::<Bn254>(&constraint_system, recursive)?;
-    let crs = CrsParser::<Bn254>::get_crs(
+    let crs: (ProverCrs<Bn254>, ark_bn254::G2Affine) = CrsParser::<Bn254>::get_crs(
         CONFIG_DIR.join("bn254_g1.dat"),
         CONFIG_DIR.join("bn254_g2.dat"),
         crs_size,
         has_zk,
-    )?;
+    )?
+    .split();
+    let prover_crs = Arc::new(crs.0);
+    let verifier_crs = Arc::new(crs.1);
 
     let cors = CorsLayer::new()
         .allow_methods(Any)
@@ -130,7 +133,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     constraint_system,
                     recursive,
                     has_zk,
-                    crs,
+                    prover_crs,
+                    verifier_crs,
                 )
                 .await
                 {

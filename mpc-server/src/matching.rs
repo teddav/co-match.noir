@@ -2,7 +2,7 @@ use co_noir::{
     AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3CoUltraHonk,
     Rep3MpcNet, UltraHonk, merge_input_shares,
 };
-use co_ultrahonk::prelude::{Crs, ZeroKnowledge};
+use co_ultrahonk::prelude::{Crs, ProverCrs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -30,7 +30,8 @@ pub async fn run_matches(
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
-    crs: Crs<Bn254>,
+    prover_crs: Arc<ProverCrs<Bn254>>,
+    verifier_crs: Arc<ark_bn254::G2Affine>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let conn = connect_db()?;
 
@@ -70,7 +71,8 @@ pub async fn run_matches(
             constraint_system.clone(),
             recursive,
             has_zk,
-            crs.clone(),
+            prover_crs.clone(),
+            verifier_crs.clone(),
         )
         .await
         {
@@ -100,7 +102,8 @@ async fn run_match(
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
-    crs: Crs<Bn254>,
+    prover_crs: Arc<ProverCrs<Bn254>>,
+    verifier_crs: Arc<ark_bn254::G2Affine>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let match_time = Instant::now();
 
@@ -117,7 +120,8 @@ async fn run_match(
         constraint_system: constraint_system.clone(),
         recursive,
         has_zk,
-        crs: crs.clone(),
+        prover_crs: prover_crs.clone(),
+        verifier_crs: verifier_crs.clone(),
     };
     let data1 = DataForThread {
         id: PartyID::ID1,
@@ -132,7 +136,8 @@ async fn run_match(
         constraint_system: constraint_system.clone(),
         recursive,
         has_zk,
-        crs: crs.clone(),
+        prover_crs: prover_crs.clone(),
+        verifier_crs: verifier_crs.clone(),
     };
     let data2 = DataForThread {
         id: PartyID::ID2,
@@ -147,7 +152,8 @@ async fn run_match(
         constraint_system: constraint_system.clone(),
         recursive,
         has_zk,
-        crs: crs.clone(),
+        prover_crs: prover_crs.clone(),
+        verifier_crs: verifier_crs.clone(),
     };
 
     let handles = vec![
@@ -186,7 +192,8 @@ struct DataForThread {
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
     has_zk: ZeroKnowledge,
-    crs: Crs<Bn254>,
+    prover_crs: Arc<ProverCrs<Bn254>>,
+    verifier_crs: Arc<ark_bn254::G2Affine>,
 }
 
 fn spawn_party(
@@ -202,10 +209,9 @@ fn spawn_party(
         constraint_system,
         recursive,
         has_zk,
-        crs,
+        prover_crs,
+        verifier_crs,
     } = data;
-
-    let (prover_crs, verifier_crs) = crs.split();
 
     let start_network = Instant::now();
     let network_config = NetworkConfig::new(
@@ -226,14 +232,15 @@ fn spawn_party(
     // generate proving key and vk
     let (pk, net) =
         co_noir::generate_proving_key_rep3(net, &constraint_system, witness_share, recursive)?;
-    let vk = pk.create_vk(&prover_crs, verifier_crs)?;
+    let vk = pk.create_vk(&prover_crs, *verifier_crs)?;
 
     // generate proof
-    let (proof, _) = Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+    let (proof, public_inputs, _) =
+        Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
 
     println!("proof time: {:?}", start_proof.elapsed());
 
-    let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?;
+    let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &public_inputs, &vk, has_zk)?;
 
     Ok(verified)
 }
