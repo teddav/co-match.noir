@@ -4,12 +4,13 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
+use axum_server::tls_rustls::RustlsConfig;
 use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
 use co_ultrahonk::prelude::ZeroKnowledge;
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
 use serde_json::json;
-use std::sync::Arc;
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use token::Token;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -53,6 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .unwrap();
+
+    let ssl_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ssl-cert");
+    let config =
+        RustlsConfig::from_pem_file(ssl_dir.join("cert.pem"), ssl_dir.join("key.pem")).await?;
 
     setup_db()?;
 
@@ -177,8 +182,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         );
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
-    axum::serve(listener, app).await?;
+    // let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
+    // axum::serve(listener, app).await?;
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
+    axum_server::bind_rustls(addr, config)
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }

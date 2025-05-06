@@ -34,3 +34,4 @@ axum-extra = { version = "0.10.1", features = ["typed-header"] }
 dotenv = "0.15.0"
 toml = "0.8.22"
 hex = "0.4.3"
+axum-server = { version = "0.7.2", features = ["tls-rustls"] }
