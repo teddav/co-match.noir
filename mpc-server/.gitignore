@@ -1,8 +1,9 @@
 /target/
 /Cargo.lock
 
-/data/
-/config*.toml
-/run.sh
+/data/*
+!/data/circuit.json
+
+/config/
 
 .env

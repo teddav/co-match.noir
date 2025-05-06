@@ -16,9 +16,12 @@ use std::{
 use crate::db::{connect_db, get_all_users, get_user, insert_matches, update_checked};
 use crate::shares::{Share, get_shares};
 
-pub const DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
-pub const SHARES_DIR_1: Lazy<PathBuf> = Lazy::new(|| DIR.join("user1"));
-pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DIR.join("user2"));
+pub const DATA_DIR: Lazy<PathBuf> =
+    Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data"));
+pub const CONFIG_DIR: Lazy<PathBuf> =
+    Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config"));
+pub const SHARES_DIR_1: Lazy<PathBuf> = Lazy::new(|| DATA_DIR.join("user1"));
+pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DATA_DIR.join("user2"));
 
 pub async fn run_matches(
     user_id: String,
@@ -105,7 +108,7 @@ async fn run_match(
         id: PartyID::ID0,
         port: 10000,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
-            DIR.join("key0.der"),
+            CONFIG_DIR.join("key0.der"),
         )?))
         .clone_key(),
         parties: parties.clone(),
@@ -120,7 +123,7 @@ async fn run_match(
         id: PartyID::ID1,
         port: 10001,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
-            DIR.join("key1.der"),
+            CONFIG_DIR.join("key1.der"),
         )?))
         .clone_key(),
         parties: parties.clone(),
@@ -135,7 +138,7 @@ async fn run_match(
         id: PartyID::ID2,
         port: 10002,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
-            DIR.join("key2.der"),
+            CONFIG_DIR.join("key2.der"),
         )?))
         .clone_key(),
         parties: parties.clone(),

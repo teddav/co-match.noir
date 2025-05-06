@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use axum::{
     Json, Router,
     extract::{Multipart, Query},
@@ -11,6 +9,7 @@ use co_ultrahonk::prelude::ZeroKnowledge;
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
 use serde_json::json;
+use std::sync::Arc;
 use token::Token;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -29,7 +28,7 @@ mod shares;
 mod token;
 
 use db::{connect_db, get_matches, setup_db};
-use matching::{DIR, run_matches};
+use matching::{CONFIG_DIR, DATA_DIR, run_matches};
 use shares::upload;
 
 #[derive(Debug, Deserialize)]
@@ -61,21 +60,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         NetworkParty::new(
             PartyID::ID0.into(),
             Address::new("localhost".to_string(), 10000),
-            CertificateDer::from(std::fs::read(DIR.join("cert0.der"))?).into_owned(),
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert0.der"))?).into_owned(),
         ),
         NetworkParty::new(
             PartyID::ID1.into(),
             Address::new("localhost".to_string(), 10001),
-            CertificateDer::from(std::fs::read(DIR.join("cert1.der"))?).into_owned(),
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert1.der"))?).into_owned(),
         ),
         NetworkParty::new(
             PartyID::ID2.into(),
             Address::new("localhost".to_string(), 10002),
-            CertificateDer::from(std::fs::read(DIR.join("cert2.der"))?).into_owned(),
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert2.der"))?).into_owned(),
         ),
     ];
 
-    let program_artifact = Utils::get_program_artifact_from_file(DIR.join("circuit.json"))?;
+    let program_artifact = Utils::get_program_artifact_from_file(DATA_DIR.join("circuit.json"))?;
     let constraint_system = Arc::new(Utils::get_constraint_system_from_artifact(
         &program_artifact,
         true,
@@ -86,8 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let crs_size = co_noir::compute_circuit_size::<Bn254>(&constraint_system, recursive)?;
     let crs = CrsParser::<Bn254>::get_crs(
-        DIR.join("bn254_g1.dat"),
-        DIR.join("bn254_g2.dat"),
+        CONFIG_DIR.join("bn254_g1.dat"),
+        CONFIG_DIR.join("bn254_g2.dat"),
         crs_size,
         has_zk,
     )?;

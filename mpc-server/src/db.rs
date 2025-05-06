@@ -1,8 +1,7 @@
+use rusqlite::{Connection, Error, params_from_iter};
 use std::collections::HashSet;
 
-use rusqlite::{Connection, Error, params_from_iter};
-
-use crate::matching::DIR;
+use crate::matching::DATA_DIR;
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -19,7 +18,7 @@ pub struct Match {
 }
 
 pub fn connect_db() -> Result<Connection, Box<dyn std::error::Error + Send + Sync>> {
-    let conn = Connection::open(DIR.join("db.sqlite"))?;
+    let conn = Connection::open(DATA_DIR.join("db.sqlite"))?;
     Ok(conn)
 }
 
