@@ -4,6 +4,8 @@ use rand::{Rng, distributions::Alphanumeric};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use super::Share;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProverData {
     user1: User,
@@ -33,8 +35,8 @@ pub async fn split_handler(
     let prover_path1 = save_prover_data(&payload, false)?;
     let prover_path2 = save_prover_data(&payload, true)?;
 
-    let shares1 = split_input(prover_path1, &program_artifact)?;
-    let shares2 = split_input(prover_path2, &program_artifact)?;
+    let shares1 = shares_to_vec_u8(split_input(prover_path1, &program_artifact)?)?;
+    let shares2 = shares_to_vec_u8(split_input(prover_path2, &program_artifact)?)?;
 
     let mut out = shares1
         .iter()
@@ -51,22 +53,25 @@ pub async fn split_handler(
     Ok(out)
 }
 
-fn split_input(
+pub fn split_input(
     input_path: PathBuf,
     program_artifact: &ProgramArtifact,
-) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<[Share; 3], Box<dyn std::error::Error + Send + Sync + 'static>> {
     let inputs = co_noir::parse_input(input_path, &program_artifact)?;
 
     let mut rng = rand::thread_rng();
     let shares = co_noir::split_input_rep3::<Bn254, Rep3MpcNet, _>(inputs, &mut rng);
 
-    let out = shares
+    Ok(shares)
+}
+
+fn shares_to_vec_u8(
+    shares: [Share; 3],
+) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    Ok(shares
         .iter()
         .map(|share| bincode::serialize(share))
-        .collect::<Result<Vec<Vec<u8>>, _>>()
-        .unwrap();
-
-    Ok(out)
+        .collect::<Result<Vec<Vec<u8>>, _>>()?)
 }
 
 fn save_prover_data(

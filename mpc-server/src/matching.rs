@@ -2,7 +2,7 @@ use co_noir::{
     AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3CoUltraHonk,
     Rep3MpcNet, UltraHonk, merge_input_shares,
 };
-use co_ultrahonk::prelude::{Crs, ProverCrs, ZeroKnowledge};
+use co_ultrahonk::prelude::{ProverCrs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -95,7 +95,7 @@ pub async fn run_matches(
     Ok(())
 }
 
-async fn run_match(
+pub async fn run_match(
     [share0, share1, share2]: [Share; 3],
     parties: Vec<NetworkParty>,
     program_artifact: &ProgramArtifact,
@@ -224,23 +224,26 @@ fn spawn_party(
     let net = Rep3MpcNet::new(network_config)?;
     println!("network setup time: {:?}", start_network.elapsed());
 
-    let start_proof = Instant::now();
+    let total_time = Instant::now();
 
-    // generate witness
+    let witness_time = Instant::now();
     let (witness_share, net) = co_noir::generate_witness_rep3(share, program_artifact, net)?;
+    println!("witness time: {:?}", witness_time.elapsed());
 
-    // generate proving key and vk
+    let pk_time = Instant::now();
     let (pk, net) =
         co_noir::generate_proving_key_rep3(net, &constraint_system, witness_share, recursive)?;
     let vk = pk.create_vk(&prover_crs, *verifier_crs)?;
+    println!("pk time: {:?}", pk_time.elapsed());
 
-    // generate proof
-    let (proof, public_inputs, _) =
-        Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+    let proof_time = Instant::now();
+    // let (proof, _) = Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+    let (proof, _) = Rep3CoUltraHonk::<_, _, Poseidon2Sponge>::prove(net, pk, &prover_crs, has_zk)?;
+    println!("proof time: {:?}", proof_time.elapsed());
 
-    println!("proof time: {:?}", start_proof.elapsed());
+    println!("TOTAL time: {:?}", total_time.elapsed());
 
-    let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &public_inputs, &vk, has_zk)?;
+    let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?;
 
     Ok(verified)
 }
