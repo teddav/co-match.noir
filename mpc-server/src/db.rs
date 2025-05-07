@@ -6,12 +6,14 @@ use crate::matching::DATA_DIR;
 #[derive(Debug, Clone)]
 pub struct User {
     pub id: String,
+    #[allow(dead_code)]
     pub twitter_handle: String,
     pub checked: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Match {
+    #[allow(dead_code)]
     pub id: u32,
     pub user_id1: String,
     pub user_id2: String,
@@ -114,6 +116,22 @@ pub fn update_checked(
         "UPDATE users SET checked = ?1 WHERE id = ?2",
         (serde_json::to_string(&checked)?, user_id),
     )?;
+    Ok(())
+}
+
+pub fn update_checked_many(
+    conn: &Connection,
+    user_ids: Vec<String>,
+    new_checked: Vec<String>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut stmt = conn.prepare("UPDATE users SET checked = ?1 WHERE id = ?2")?;
+
+    for user_id in user_ids {
+        let user = get_user(conn, &user_id)?;
+        let mut checked: HashSet<String> = user.checked.into_iter().collect();
+        checked.extend(new_checked.clone());
+        stmt.execute((serde_json::to_string(&checked)?, user_id))?;
+    }
     Ok(())
 }
 

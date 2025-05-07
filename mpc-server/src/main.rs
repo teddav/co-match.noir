@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
 };
 use axum_server::tls_rustls::RustlsConfig;
-use co_noir::{Address, Bn254, CrsParser, NetworkParty, PartyID, Utils};
+use co_noir::{Bn254, CrsParser, Utils};
 use co_ultrahonk::prelude::{ProverCrs, ZeroKnowledge};
 use rustls::pki_types::CertificateDer;
 use serde::Deserialize;
@@ -61,22 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     setup_db()?;
 
-    let parties = vec![
-        NetworkParty::new(
-            PartyID::ID0.into(),
-            Address::new("localhost".to_string(), 10000),
-            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert0.der"))?).into_owned(),
-        ),
-        NetworkParty::new(
-            PartyID::ID1.into(),
-            Address::new("localhost".to_string(), 10001),
-            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert1.der"))?).into_owned(),
-        ),
-        NetworkParty::new(
-            PartyID::ID2.into(),
-            Address::new("localhost".to_string(), 10002),
-            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert2.der"))?).into_owned(),
-        ),
+    let parties_certs = [
+        CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert0.der"))?).into_owned(),
+        CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert1.der"))?).into_owned(),
+        CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert2.der"))?).into_owned(),
     ];
 
     let program_artifact = Utils::get_program_artifact_from_file(DATA_DIR.join("circuit.json"))?;
@@ -128,9 +116,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             post(move |token: Token| async move {
                 match run_matches(
                     token.user_id,
-                    parties,
+                    parties_certs,
                     &program_artifact,
-                    constraint_system,
+                    constraint_system.clone(),
                     recursive,
                     has_zk,
                     prover_crs,
@@ -201,8 +189,8 @@ mod tests {
     use super::*;
     use crate::{matching::run_match, shares::split_input};
 
-    #[tokio::test]
-    async fn test_match() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    #[test]
+    fn test_match() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let prover_toml = r#"[user1]
 age = 30
 region = 1
@@ -233,22 +221,10 @@ gender = 0"#;
             .install_default()
             .unwrap();
 
-        let parties = vec![
-            NetworkParty::new(
-                PartyID::ID0.into(),
-                Address::new("localhost".to_string(), 10000),
-                CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert0.der"))?).into_owned(),
-            ),
-            NetworkParty::new(
-                PartyID::ID1.into(),
-                Address::new("localhost".to_string(), 10001),
-                CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert1.der"))?).into_owned(),
-            ),
-            NetworkParty::new(
-                PartyID::ID2.into(),
-                Address::new("localhost".to_string(), 10002),
-                CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert2.der"))?).into_owned(),
-            ),
+        let parties_certs = [
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert0.der"))?).into_owned(),
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert1.der"))?).into_owned(),
+            CertificateDer::from(std::fs::read(CONFIG_DIR.join("cert2.der"))?).into_owned(),
         ];
 
         let program_artifact =
@@ -274,19 +250,20 @@ gender = 0"#;
 
         let shares = split_input(PathBuf::from("Prover.toml"), &program_artifact)?;
 
-        let result = run_match(
-            shares,
-            parties.clone(),
-            &program_artifact,
-            constraint_system.clone(),
-            recursive,
-            has_zk,
-            prover_crs.clone(),
-            verifier_crs.clone(),
-        )
-        .await;
-
-        println!("result: {:?}", result);
+        for i in 0..5 {
+            let result = run_match(
+                i,
+                shares.clone(),
+                parties_certs.clone(),
+                &program_artifact,
+                constraint_system.clone(),
+                recursive,
+                has_zk,
+                prover_crs.clone(),
+                verifier_crs.clone(),
+            );
+            println!("result: {:?}", result);
+        }
 
         std::fs::remove_file("Prover.toml").unwrap();
 
