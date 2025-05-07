@@ -64,22 +64,31 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-4xl font-bold text-purple-800">Co-Match Dating</h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-100 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-pink-200 rounded-full opacity-20 blur-2xl"></div>
+        <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-200 rounded-full opacity-20 blur-2xl"></div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 relative">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+            Co-Match Dating 🌶️
+          </h1>
         </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 mb-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-purple-700 mb-3">How It Works</h2>
-          <p className="text-gray-700 mb-4">
+
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-8 mb-8 shadow-lg border border-pink-100">
+          <h2 className="text-2xl font-semibold text-purple-700 mb-4">How It Works</h2>
+          <p className="text-gray-700 mb-6 leading-relaxed">
             Co-Match is a privacy-focused dating app that uses <b>zero-knowledge proofs</b> and <b>multiparty computation</b> to match you
             with potential partners without revealing your personal information. Here&apos;s how it works:
           </p>
-          <ol className="list-decimal list-inside space-y-2 text-gray-600">
-            <li>Set your profile and preferences (you can select up to 3 interests)</li>
-            <li>Our system will find potential matches based on your criteria</li>
-            <li>If there&apos;s a mutual match, you&apos;ll both be notified</li>
-            <li>Your personal data remains private throughout the entire process</li>
+          <ol className="list-decimal list-inside space-y-3 text-gray-600">
+            <li className="hover:text-purple-600 transition-colors">Set your profile and preferences (you can select up to 3 interests)</li>
+            <li className="hover:text-purple-600 transition-colors">Our system will find potential matches based on your criteria</li>
+            <li className="hover:text-purple-600 transition-colors">If there&apos;s a mutual match, you&apos;ll both be notified</li>
+            <li className="hover:text-purple-600 transition-colors">Your personal data remains private throughout the entire process</li>
           </ol>
         </div>
 
@@ -87,7 +96,7 @@ export default function Home() {
           <div className="flex justify-center my-8">
             <button
               onClick={() => setShowPreferences(!showPreferences)}
-              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               {showPreferences ? "Hide Preferences" : "View Preferences"}
             </button>

@@ -56,12 +56,14 @@ export default function Matches() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Loading Matches...</h2>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-6">
+          Loading Matches... 💫
+        </h2>
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-4 bg-gray-200 rounded"></div>
-          <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          <div className="h-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl w-3/4"></div>
+          <div className="h-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl"></div>
+          <div className="h-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl w-5/6"></div>
         </div>
       </div>
     );
@@ -69,12 +71,12 @@ export default function Matches() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Error</h2>
-        <div className="p-4 bg-red-50 text-red-700 rounded-md">{error}</div>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-6">Oops! 💔</h2>
+        <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 mb-6">{error}</div>
         <button
           onClick={computeNewMatches}
-          className="mt-4 w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+          className="w-full py-3 px-6 rounded-xl transition-all duration-300 bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
         >
           Try Again
         </button>
@@ -84,12 +86,14 @@ export default function Matches() {
 
   if (matches.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">No Matches Yet</h2>
-        <p className="text-gray-600 mb-6">Click the button below to check for matches!</p>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-6">
+          No Matches Yet 💭
+        </h2>
+        <p className="text-gray-600 mb-8">Click the button below to check for matches!</p>
         <button
           onClick={computeNewMatches}
-          className="w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+          className="w-full py-3 px-6 rounded-xl transition-all duration-300 bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
         >
           Check for Matches
         </button>
@@ -100,10 +104,13 @@ export default function Matches() {
   console.log("MATCHES", matches);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800">Your Matches</h2>
-        <button onClick={computeNewMatches} className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
+    <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">Your Matches 💖</h2>
+        <button
+          onClick={computeNewMatches}
+          className="px-6 py-3 rounded-xl transition-all duration-300 bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+        >
           Refresh Matches
         </button>
       </div>
@@ -112,18 +119,18 @@ export default function Matches() {
           const handle = match_.startsWith("@") ? match_.slice(1) : match_;
 
           return (
-            <div key={match_} className="border rounded-lg p-4 hover:bg-gray-50">
+            <div key={match_} className="border border-gray-200 rounded-xl p-6 hover:border-purple-300 transition-all hover:shadow-md">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">@{handle}</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">@{handle}</h3>
                   <p className="text-sm text-gray-500">You have a match! 🎉</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <a
                     href={`https://twitter.com/${handle}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 border border-purple-600 text-purple-700 rounded-md hover:bg-purple-50 transition-colors text-sm font-medium"
+                    className="px-4 py-2 border border-purple-600 text-purple-700 rounded-xl hover:bg-purple-50 transition-all text-sm font-medium"
                   >
                     View Profile →
                   </a>
@@ -131,7 +138,7 @@ export default function Matches() {
                     href={`https://twitter.com/intent/tweet?text=I'm a match with @${handle} on Co-Match!!! ❤️ %0APrivate dating made possible thanks to Noir and coSNARKs🪄🥳 %0AThanks @TACEO_IO @NoirLang @0xteddav&url=https://co-match.vercel.app`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm font-medium"
+                    className="px-4 py-2 rounded-xl transition-all duration-300 bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm font-medium"
                   >
                     Send a love message
                   </a>

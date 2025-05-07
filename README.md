@@ -34,6 +34,10 @@ If there's no match: no one ever knows.
 
 ## Run
 
+### Noir circuit
+
+The Noir circuit is really simple, in order to make proving faster. Compiled with `nargo 1.0.0-beta.3`, it has 188 gates.
+
 ### MPC server
 
 You'll need a powerful server to compute the proofs fast. I'm renting an Hetzner's CCX33 (8 vcpus, 32GB) and each proof takes about 450ms to generate.
