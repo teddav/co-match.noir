@@ -80,16 +80,48 @@ export default function Home() {
 
         <div className="bg-white/90 backdrop-blur-md rounded-2xl p-8 mb-8 shadow-lg border border-pink-100">
           <h2 className="text-2xl font-semibold text-purple-700 mb-4">How It Works</h2>
-          <p className="text-gray-700 mb-6 leading-relaxed">
+          <p className="text-gray-700 mb-4">
             Co-Match is a privacy-focused dating app that uses <b>zero-knowledge proofs</b> and <b>multiparty computation</b> to match you
             with potential partners without revealing your personal information. Here&apos;s how it works:
           </p>
-          <ol className="list-decimal list-inside space-y-3 text-gray-600">
-            <li className="hover:text-purple-600 transition-colors">Set your profile and preferences (you can select up to 3 interests)</li>
-            <li className="hover:text-purple-600 transition-colors">Our system will find potential matches based on your criteria</li>
-            <li className="hover:text-purple-600 transition-colors">If there&apos;s a mutual match, you&apos;ll both be notified</li>
-            <li className="hover:text-purple-600 transition-colors">Your personal data remains private throughout the entire process</li>
+          <ol className="list-decimal list-inside space-y-2 text-gray-600">
+            <li>Set your profile and preferences (you can select up to 3 interests)</li>
+            <li>Our system will find potential matches based on your criteria</li>
+            <li>If there&apos;s a mutual match, you&apos;ll both be notified</li>
+            <li>Your personal data remains private throughout the entire process</li>
           </ol>
+          <p className="text-gray-700 mt-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
+            This is a proof of concept built with{" "}
+            <a
+              href="https://noir-lang.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Noir
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://taceo.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium"
+            >
+              co-snarks
+            </a>
+            , demonstrating how zero-knowledge proofs and multiparty computation can be used to create truly private dating applications.
+            <br />
+            Check out the{" "}
+            <a
+              href="https://github.com/teddav/co-match.nr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium"
+            >
+              source code
+            </a>{" "}
+            to learn more about the implementation! 🚀
+          </p>
         </div>
 
         {view !== "preferences" && (
