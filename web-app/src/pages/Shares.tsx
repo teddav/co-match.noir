@@ -132,9 +132,17 @@ export default function Shares({ preferences, getMatches }: SharesProps) {
         <div className="border border-gray-200 rounded-xl p-6 hover:border-purple-300 transition-all">
           <div className="mb-4">
             <h3 className="text-xl font-semibold text-gray-900">Step 2: Upload Shares</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Twitter handler: To allow your matches to contact you, please enter your Twitter handle.
-            </p>
+            <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100 mb-6">
+              <p className="text-sm text-gray-600 mb-2">
+                <span className="font-medium text-purple-700">Quick note:</span> Since this is a proof of concept, I haven&apos;t built an
+                in-app chat yet. That&apos;s why I&apos;m asking for your Twitter handle - it&apos;s the easiest way for your matches to
+                reach out to you!
+              </p>
+              <p className="text-sm text-gray-600">
+                If you prefer not to share your handle, you can just copy mine:{" "}
+                <span className="font-medium text-purple-700">@0xteddav</span>
+              </p>
+            </div>
             <div className="flex items-center space-x-2 mb-4">
               <span className="text-gray-500">@</span>
               <input
