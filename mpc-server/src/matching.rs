@@ -1,16 +1,17 @@
 use co_noir::{
-    AcirFormat, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge, Rep3CoUltraHonk,
-    Rep3MpcNet, UltraHonk, merge_input_shares,
+    AcirFormat, Address, Bn254, NetworkConfig, NetworkParty, PartyID, Poseidon2Sponge,
+    Rep3CoUltraHonk, Rep3MpcNet, UltraHonk, merge_input_shares,
 };
 use co_ultrahonk::prelude::{ProverCrs, ZeroKnowledge};
 use noirc_artifacts::program::ProgramArtifact;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
+use rustls::pki_types::CertificateDer;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
-use std::sync::Arc;
-use std::thread;
 use std::{
     path::PathBuf,
+    sync::Arc,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -28,7 +29,7 @@ pub const SHARES_DIR_2: Lazy<PathBuf> = Lazy::new(|| DATA_DIR.join("user2"));
 
 pub async fn run_matches(
     user_id: String,
-    parties: Vec<NetworkParty>,
+    parties_certs: [CertificateDer<'static>; 3],
     program_artifact: &ProgramArtifact,
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
@@ -62,8 +63,9 @@ pub async fn run_matches(
 
     let verified_matches = all_users
         .into_par_iter()
+        .enumerate()
         .map(
-            |user2| -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+            |(thread_id, user2)| -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
                 let shares_user1 = get_shares(&user1.id, true)?;
                 let shares_user2 = get_shares(&user2.id, false)?;
 
@@ -72,8 +74,9 @@ pub async fn run_matches(
                 let share2 = merge_shares(shares_user1[2].clone(), shares_user2[2].clone())?;
 
                 match run_match(
+                    thread_id,
                     [share0, share1, share2],
-                    parties.clone(),
+                    parties_certs.clone(),
                     program_artifact,
                     constraint_system.clone(),
                     recursive,
@@ -104,8 +107,9 @@ pub async fn run_matches(
 }
 
 pub fn run_match(
+    thread_id: usize,
     [share0, share1, share2]: [Share; 3],
-    parties: Vec<NetworkParty>,
+    parties_certs: [CertificateDer<'static>; 3],
     program_artifact: &ProgramArtifact,
     constraint_system: Arc<AcirFormat<ark_bn254::Fr>>,
     recursive: bool,
@@ -115,9 +119,31 @@ pub fn run_match(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let match_time = Instant::now();
 
+    let party0_port = 10000 + thread_id as u16;
+    let party1_port = 11000 + thread_id as u16;
+    let party2_port = 12000 + thread_id as u16;
+
+    let parties = vec![
+        NetworkParty::new(
+            PartyID::ID0.into(),
+            Address::new("localhost".to_string(), party0_port),
+            parties_certs[0].clone(),
+        ),
+        NetworkParty::new(
+            PartyID::ID1.into(),
+            Address::new("localhost".to_string(), party1_port),
+            parties_certs[1].clone(),
+        ),
+        NetworkParty::new(
+            PartyID::ID2.into(),
+            Address::new("localhost".to_string(), party2_port),
+            parties_certs[2].clone(),
+        ),
+    ];
+
     let data0 = DataForThread {
         id: PartyID::ID0,
-        port: 10000,
+        port: party0_port,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
             CONFIG_DIR.join("key0.der"),
         )?))
@@ -133,7 +159,7 @@ pub fn run_match(
     };
     let data1 = DataForThread {
         id: PartyID::ID1,
-        port: 10001,
+        port: party1_port,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
             CONFIG_DIR.join("key1.der"),
         )?))
@@ -149,7 +175,7 @@ pub fn run_match(
     };
     let data2 = DataForThread {
         id: PartyID::ID2,
-        port: 10002,
+        port: party2_port,
         key: PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(std::fs::read(
             CONFIG_DIR.join("key2.der"),
         )?))
@@ -252,6 +278,5 @@ fn spawn_party(
 
     let verified = UltraHonk::<_, Poseidon2Sponge>::verify(proof, &vk, has_zk)?;
 
-    println!("verified: {verified}");
     Ok(verified)
 }

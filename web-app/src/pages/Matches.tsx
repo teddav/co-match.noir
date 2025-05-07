@@ -73,7 +73,7 @@ export default function Matches() {
         </h2>
         <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100 mb-6">
           <p className="text-gray-600 mb-2">
-            This might take up to 45 seconds - we&apos;re doing some heavy cryptographic lifting behind the scenes! 🔐
+            This might take up to 15 seconds - we&apos;re doing some heavy cryptographic lifting behind the scenes! 🔐
           </p>
           <p className="text-sm text-gray-500 mb-2">While you wait, here&apos;s what&apos;s happening:</p>
           <ul className="list-disc list-inside text-sm text-gray-500 mt-2 space-y-1">

@@ -6,12 +6,14 @@ use crate::matching::DATA_DIR;
 #[derive(Debug, Clone)]
 pub struct User {
     pub id: String,
+    #[allow(dead_code)]
     pub twitter_handle: String,
     pub checked: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Match {
+    #[allow(dead_code)]
     pub id: u32,
     pub user_id1: String,
     pub user_id2: String,
