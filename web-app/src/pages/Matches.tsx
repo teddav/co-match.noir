@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getMatches, postMatches } from "./api";
 
 type Match = string;
@@ -7,6 +7,20 @@ export default function Matches() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      setElapsedTime(0);
+      timer = setInterval(() => {
+        setElapsedTime((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [loading]);
 
   const fetchMatches = async () => {
     const token = localStorage.getItem("co-match-token");
@@ -20,7 +34,6 @@ export default function Matches() {
 
     try {
       const data = await getMatches(token);
-      console.log("DATA", data);
       setMatches(data.matches);
     } catch (error) {
       console.error(error);
@@ -28,7 +41,6 @@ export default function Matches() {
   };
 
   const computeNewMatches = async () => {
-    console.log("COMPUTING NEW MATCHES");
     const token = localStorage.getItem("co-match-token");
     if (!token) {
       setError("No token found. Please try uploading your shares again.");
@@ -40,7 +52,6 @@ export default function Matches() {
 
     try {
       const data = await postMatches(token);
-      console.log("DATA", data);
       if (data == "ok") {
         fetchMatches();
       } else {
@@ -58,8 +69,27 @@ export default function Matches() {
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
         <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-6">
-          Loading Matches... 💫
+          Finding Your Matches... 💫
         </h2>
+        <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100 mb-6">
+          <p className="text-gray-600 mb-2">
+            This might take up to 45 seconds - we&apos;re doing some heavy cryptographic lifting behind the scenes! 🔐
+          </p>
+          <p className="text-sm text-gray-500 mb-2">While you wait, here&apos;s what&apos;s happening:</p>
+          <ul className="list-disc list-inside text-sm text-gray-500 mt-2 space-y-1">
+            <li>Computing zero-knowledge proofs</li>
+            <li>Running multiparty computation</li>
+            <li>Finding your perfect matches</li>
+          </ul>
+          <div className="mt-4 pt-4 border-t border-pink-100">
+            <p className="text-sm text-gray-500">
+              Time elapsed: <span className="font-medium text-purple-600">{elapsedTime}s</span>
+            </p>
+          </div>
+        </div>
+        <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden mb-6">
+          <div className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-pink-500 to-purple-500 animate-[loading_2s_ease-in-out_infinite]"></div>
+        </div>
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl w-3/4"></div>
           <div className="h-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl"></div>
@@ -100,8 +130,6 @@ export default function Matches() {
       </div>
     );
   }
-
-  console.log("MATCHES", matches);
 
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 border border-pink-100">
