@@ -44,7 +44,6 @@ pub async fn run_matches(
         .into_iter()
         .filter(|u| !user1.checked.contains(&u.id))
         .collect::<Vec<_>>();
-    println!("all users: {all_users:?}");
 
     update_checked(
         &conn,
@@ -61,36 +60,41 @@ pub async fn run_matches(
         .map(|u| u.id.clone())
         .collect::<Vec<String>>();
 
-    let verified_matches = all_users
-        .into_par_iter()
-        .enumerate()
-        .map(
-            |(thread_id, user2)| -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-                let shares_user1 = get_shares(&user1.id, true)?;
-                let shares_user2 = get_shares(&user2.id, false)?;
+    println!("ALL USERS: {:?}", all_users.len());
 
-                let share0 = merge_shares(shares_user1[0].clone(), shares_user2[0].clone())?;
-                let share1 = merge_shares(shares_user1[1].clone(), shares_user2[1].clone())?;
-                let share2 = merge_shares(shares_user1[2].clone(), shares_user2[2].clone())?;
+    let pool = rayon::ThreadPoolBuilder::new().num_threads(5).build()?;
 
-                match run_match(
-                    thread_id,
-                    [share0, share1, share2],
-                    parties_certs.clone(),
-                    program_artifact,
-                    constraint_system.clone(),
-                    recursive,
-                    has_zk,
-                    prover_crs.clone(),
-                    verifier_crs.clone(),
-                ) {
-                    Ok(_) => Ok(user2.id),
-                    Err(e) => Err(e),
-                }
-            },
-        )
-        .filter(|m| m.is_ok())
-        .collect::<Result<Vec<String>, _>>()?;
+    let verified_matches = pool.install(|| -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        all_users
+            .into_par_iter()
+            .enumerate()
+            .map(|(thread_id, user2)| -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+                            let shares_user1 = get_shares(&user1.id, true)?;
+                            let shares_user2 = get_shares(&user2.id, false)?;
+
+                            let share0 = merge_shares(shares_user1[0].clone(), shares_user2[0].clone())?;
+                            let share1 = merge_shares(shares_user1[1].clone(), shares_user2[1].clone())?;
+                            let share2 = merge_shares(shares_user1[2].clone(), shares_user2[2].clone())?;
+
+                            match run_match(
+                                thread_id,
+                                [share0, share1, share2],
+                                parties_certs.clone(),
+                                program_artifact,
+                                constraint_system.clone(),
+                                recursive,
+                                has_zk,
+                                prover_crs.clone(),
+                                verifier_crs.clone(),
+                            ) {
+                                Ok(_) => Ok(user2.id),
+                                Err(e) => Err(e),
+                            }
+                        },
+                    )
+                    .filter(|m| m.is_ok())
+                    .collect::<Result<Vec<String>, _>>()
+    })?;
 
     println!("verified matches: {verified_matches:?}");
 
