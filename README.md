@@ -46,6 +46,9 @@ Run the [config.sh](./mpc-server/config.sh) file to generate the certificates an
 
 You'll need to add an env variable for the JWT token: `JWT_SECRET`
 
+> [!TIP]
+> If you want to run the server but you're struggling to set it up, message me on Twitter and i'll help you
+
 ### Front
 
 Edit the [config](./web-app/next.config.ts) with the address of the API
