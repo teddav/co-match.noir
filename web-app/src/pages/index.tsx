@@ -78,6 +78,23 @@ export default function Home() {
           </h1>
         </div>
 
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-semibold text-yellow-800 mb-2">⚠️ MPC Server Status</h3>
+          <p className="text-yellow-700">
+            The app is currently not functional as the MPC server is not running. To try out the app, you&apos;ll need to run your own MPC
+            server. Check out the{" "}
+            <a
+              href="https://github.com/teddav/co-match.nr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-800 underline hover:text-yellow-900"
+            >
+              source code
+            </a>{" "}
+            for instructions on setting up the server.
+          </p>
+        </div>
+
         <div className="bg-white/90 backdrop-blur-md rounded-2xl p-8 mb-8 shadow-lg border border-pink-100">
           <h2 className="text-2xl font-semibold text-purple-700 mb-4">How It Works</h2>
           <p className="text-gray-700 mb-4">
