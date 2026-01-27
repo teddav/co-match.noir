@@ -61,7 +61,7 @@ export default function Shares({ preferences, getMatches }: SharesProps) {
 
       // Add each share as a separate file
       shares.forEach((share, index) => {
-        const blob = new Blob([share], { type: "application/octet-stream" });
+        const blob = new Blob([new Uint8Array(share)], { type: "application/octet-stream" });
         formData.append(`file${index}`, blob);
       });
 
